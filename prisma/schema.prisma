@@ -1,0 +1,265 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String?
+  createdAt    DateTime @default(now())
+
+  workspaceMembers WorkspaceMember[]
+  createdTasks     Task[]
+  approvalDecisions ApprovalRequest[] @relation("ApprovalDecider")
+  chatMessages     ChatMessage[]
+  auditEvents      AuditEvent[]
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+
+  members          WorkspaceMember[]
+  apiKeySecrets    ApiKeySecret[]
+  connectors       Connector[]
+  agents           Agent[]
+  tasks            Task[]
+  approvalRequests ApprovalRequest[]
+  auditEvents      AuditEvent[]
+  chatThreads      ChatThread[]
+  meetingSessions  MeetingSession[]
+
+  @@index([slug])
+}
+
+model WorkspaceMember {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String
+  role        String   // admin, manager, operator, viewer
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model ApiKeySecret {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  provider     String   // openai, anthropic, google
+  encryptedKey String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+}
+
+model Connector {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  type            String   // smtp, webhook, calendar, stripe
+  encryptedConfig String   @db.Text
+  isEnabled       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model Agent {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  name                  String
+  type                  String   // commander, growth, ops, support, analyst
+  systemPromptVersion   String   @default("1.0")
+  policyJson            String   @db.Text @default("{}")
+  isEnabled             Boolean  @default(true)
+  createdAt             DateTime @default(now())
+
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  approvalRequests ApprovalRequest[]
+  chatMessages     ChatMessage[]
+  auditEvents      AuditEvent[]
+
+  @@index([workspaceId])
+  @@index([type])
+}
+
+model Task {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  createdByUserId   String
+  title             String
+  objective         String   @db.Text
+  status            String   @default("pending") // pending, planning, executing, needs_approval, completed, failed
+  priority          String   @default("medium") // low, medium, high
+  requiresApproval  Boolean  @default(false)
+  approvedByUserId  String?
+  activeRunId       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy        User              @relation(fields: [createdByUserId], references: [id])
+  plans            TaskPlan[]
+  runs             Run[]
+  approvalRequests ApprovalRequest[]
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([createdByUserId])
+}
+
+model TaskPlan {
+  id        String   @id @default(cuid())
+  taskId    String
+  planJson  String   @db.Text
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model Run {
+  id               String    @id @default(cuid())
+  taskId           String
+  status           String    @default("started") // started, executing, waiting_approval, completed, failed
+  startedAt        DateTime  @default(now())
+  endedAt          DateTime?
+  provider         String?   // openai, anthropic, google
+  model            String?
+  promptTokens     Int       @default(0)
+  completionTokens Int       @default(0)
+  costEstimateUsd  Float     @default(0)
+  errorJson        String?   @db.Text
+
+  task             Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  steps            RunStep[]
+  approvalRequests ApprovalRequest[]
+
+  @@index([taskId])
+  @@index([status])
+}
+
+model RunStep {
+  id          String   @id @default(cuid())
+  runId       String
+  index       Int
+  type        String   // plan, tool_call, tool_result, log, message
+  contentJson String   @db.Text
+  createdAt   DateTime @default(now())
+
+  run              Run               @relation(fields: [runId], references: [id], onDelete: Cascade)
+  approvalRequests ApprovalRequest[]
+
+  @@index([runId])
+  @@index([runId, index])
+}
+
+model ApprovalRequest {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  taskId              String
+  runId               String
+  runStepId           String?
+  status              String    @default("pending") // pending, approved, rejected
+  summary             String
+  detailsJson         String    @db.Text
+  editablePayloadJson String    @db.Text
+  requestedByAgentId  String?
+  decidedByUserId     String?
+  createdAt           DateTime  @default(now())
+  decidedAt           DateTime?
+
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  run             Run       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  runStep         RunStep?  @relation(fields: [runStepId], references: [id], onDelete: SetNull)
+  requestedByAgent Agent?   @relation(fields: [requestedByAgentId], references: [id], onDelete: SetNull)
+  decidedBy       User?     @relation("ApprovalDecider", fields: [decidedByUserId], references: [id])
+
+  @@index([workspaceId])
+  @@index([status])
+  @@index([taskId])
+  @@index([runId])
+}
+
+model AuditEvent {
+  id            String   @id @default(cuid())
+  workspaceId   String
+  actorUserId   String?
+  actorAgentId  String?
+  type          String   // user.login, task.created, approval.approved, etc
+  payloadJson   String   @db.Text
+  createdAt     DateTime @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actorUser   User?     @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAgent  Agent?    @relation(fields: [actorAgentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([type])
+}
+
+model ChatThread {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String?
+  createdAt   DateTime @default(now())
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([workspaceId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  threadId      String
+  actorType     String   // user, agent
+  actorUserId   String?
+  actorAgentId  String?
+  content       String   @db.Text
+  contentJson   String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  thread      ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  actorUser   User?      @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAgent  Agent?     @relation(fields: [actorAgentId], references: [id], onDelete: SetNull)
+
+  @@index([threadId])
+}
+
+model MeetingSession {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  title          String?
+  status         String   @default("active") // active, completed
+  transcriptText String?  @db.Text
+  notesJson      String?  @db.Text
+  decisionsJson  String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}

@@ -1,0 +1,42 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
+
+export async function middleware(request: NextRequest) {
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  })
+
+  const { pathname } = request.nextUrl
+
+  // Public routes that don't require authentication
+  const publicRoutes = ['/', '/pricing', '/about', '/signin', '/signup']
+  const isPublicRoute = publicRoutes.some((route) => pathname === route)
+  const isAuthRoute = pathname.startsWith('/api/auth')
+
+  // Allow public routes and auth routes
+  if (isPublicRoute || isAuthRoute) {
+    return NextResponse.next()
+  }
+
+  // Check if user is authenticated for app routes
+  if (pathname.startsWith('/app') || pathname.startsWith('/api')) {
+    if (!token) {
+      if (pathname.startsWith('/api')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      const url = new URL('/signin', request.url)
+      url.searchParams.set('callbackUrl', pathname)
+      return NextResponse.redirect(url)
+    }
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+}
