@@ -19,6 +19,7 @@ import {
   HelpCircle,
   LogOut,
   Shield,
+  Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
@@ -29,6 +30,7 @@ const navigation = [
   { name: 'Agents', href: '/app/agents', icon: Users },
   { name: 'Connectors', href: '/app/connectors', icon: Plug },
   { name: 'Approvals', href: '/app/approvals', icon: CheckSquare },
+  { name: 'SQL Editor', href: '/app/sql', icon: Database },
   { name: 'Boardroom', href: '/app/boardroom', icon: Radio },
   { name: 'Audit Log', href: '/app/audit', icon: FileText },
 ]
