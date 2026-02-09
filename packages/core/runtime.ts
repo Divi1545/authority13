@@ -29,7 +29,6 @@ export class AgentRuntime {
       await this.emitEvent({
         type: 'log',
         data: { message: 'Commander: Analyzing objective and creating plan...' },
-        timestamp: Date.now(),
       })
 
       const plan = await this.commander.createPlan(objective)
@@ -45,7 +44,6 @@ export class AgentRuntime {
       await this.emitEvent({
         type: 'plan.created',
         data: { plan },
-        timestamp: Date.now(),
       })
 
       await this.addRunStep('plan', { plan })
@@ -55,7 +53,6 @@ export class AgentRuntime {
         await this.emitEvent({
           type: 'subtask.started',
           data: { subtask },
-          timestamp: Date.now(),
         })
 
         const agent = this.agents.get(subtask.agent)
@@ -68,7 +65,6 @@ export class AgentRuntime {
           data: {
             message: `${subtask.agent} Agent: Starting "${subtask.title}"`,
           },
-          timestamp: Date.now(),
         })
 
         // Execute subtask
@@ -77,20 +73,17 @@ export class AgentRuntime {
         await this.emitEvent({
           type: 'subtask.completed',
           data: { subtask },
-          timestamp: Date.now(),
         })
       }
 
       await this.emitEvent({
         type: 'log',
         data: { message: 'All subtasks completed successfully!' },
-        timestamp: Date.now(),
       })
     } catch (error) {
       await this.emitEvent({
         type: 'error',
         data: { error: (error as Error).message },
-        timestamp: Date.now(),
       })
       throw error
     }
