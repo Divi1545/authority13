@@ -6,7 +6,7 @@ export class SMTPConnector extends BaseConnector {
 
   constructor(config: any) {
     super(config)
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: config.host,
       port: config.port,
       secure: config.secure,
