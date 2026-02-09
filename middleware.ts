@@ -32,6 +32,27 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Check super admin access for admin routes
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+    if (!token) {
+      if (pathname.startsWith('/api/admin')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      const url = new URL('/signin', request.url)
+      url.searchParams.set('callbackUrl', pathname)
+      return NextResponse.redirect(url)
+    }
+
+    // Check if user is super admin
+    if (!(token as any).isSuperAdmin) {
+      if (pathname.startsWith('/api/admin')) {
+        return NextResponse.json({ error: 'Forbidden: Super admin access required' }, { status: 403 })
+      }
+      // Redirect non-super-admins away from admin pages
+      return NextResponse.redirect(new URL('/app', request.url))
+    }
+  }
+
   return NextResponse.next()
 }
 

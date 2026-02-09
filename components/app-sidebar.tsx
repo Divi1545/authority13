@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Badge } from '@/components/ui/badge'
 import {
   LayoutDashboard,
   ListTodo,
@@ -17,8 +18,10 @@ import {
   CreditCard,
   HelpCircle,
   LogOut,
+  Shield,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
 
 const navigation = [
   { name: 'Mission Control', href: '/app', icon: LayoutDashboard },
@@ -39,6 +42,24 @@ const bottomNav = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+
+  useEffect(() => {
+    // Check if user is super admin
+    const checkSuperAdmin = async () => {
+      try {
+        const res = await fetch('/api/auth/session')
+        const data = await res.json()
+        setIsSuperAdmin(data?.user?.isSuperAdmin || false)
+      } catch (error) {
+        console.error('Failed to check super admin status:', error)
+      }
+    }
+
+    if (session?.user) {
+      checkSuperAdmin()
+    }
+  }, [session])
 
   return (
     <div className="w-64 border-r bg-card flex flex-col">
@@ -72,6 +93,22 @@ export function AppSidebar() {
       </nav>
 
       <div className="p-4 space-y-1">
+        {/* Super Admin Link */}
+        {isSuperAdmin && (
+          <>
+            <Link
+              href="/admin"
+              className={cn(
+                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors bg-purple-600/10 hover:bg-purple-600/20 border border-purple-600/30'
+              )}
+            >
+              <Shield className="w-5 h-5 text-purple-600" />
+              <span className="font-medium">Super Admin</span>
+            </Link>
+            <Separator className="my-2" />
+          </>
+        )}
+
         {bottomNav.map((item) => {
           const isActive = pathname === item.href
           return (

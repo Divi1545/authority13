@@ -6,6 +6,20 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('Seeding database...')
 
+  // Create super admin user
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'admin@authority13.ai' },
+    update: {},
+    create: {
+      email: 'admin@authority13.ai',
+      name: 'Super Admin',
+      passwordHash: await hash('admin1234', 12),
+      isSuperAdmin: true,
+    },
+  })
+
+  console.log('Created super admin:', superAdmin.email)
+
   // Create demo user
   const demoUser = await prisma.user.upsert({
     where: { email: 'demo@authority13.ai' },
@@ -14,6 +28,7 @@ async function main() {
       email: 'demo@authority13.ai',
       name: 'Demo User',
       passwordHash: await hash('demo1234', 12),
+      isSuperAdmin: false,
     },
   })
 
