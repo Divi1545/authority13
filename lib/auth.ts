@@ -56,17 +56,17 @@ export const authOptions: NextAuthOptions = {
     error: '/signin',
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any; user: any }) {
       if (user) {
         token.id = user.id
-        token.isSuperAdmin = (user as any).isSuperAdmin
+        token.isSuperAdmin = user.isSuperAdmin
       }
       return token
     },
-    async session({ session, token }) {
+    async session({ session, token }: { session: any; token: any }) {
       if (session.user) {
-        (session.user as any).id = token.id as string
-        (session.user as any).isSuperAdmin = token.isSuperAdmin as boolean
+        session.user.id = token.id
+        session.user.isSuperAdmin = token.isSuperAdmin
       }
       return session
     },
