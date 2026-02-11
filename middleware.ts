@@ -14,9 +14,10 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = ['/', '/pricing', '/about', '/signin', '/signup']
   const isPublicRoute = publicRoutes.some((route) => pathname === route)
   const isAuthRoute = pathname.startsWith('/api/auth')
+  const isHealthRoute = pathname === '/api/health'
 
-  // Allow public routes and auth routes
-  if (isPublicRoute || isAuthRoute) {
+  // Allow public routes, auth routes, and health check
+  if (isPublicRoute || isAuthRoute || isHealthRoute) {
     return NextResponse.next()
   }
 
