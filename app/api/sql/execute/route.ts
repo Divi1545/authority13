@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check workspace access and get user role
-    const member = await requireWorkspaceAccess(userId, workspaceId, 'manager')
+    const { member } = await requireWorkspaceAccess(userId, workspaceId, 'manager')
 
     // Rate limiting
     if (!checkRateLimit(userId, 10)) {
