@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'bcryptjs'],
+  serverExternalPackages: ['@prisma/client', 'bcryptjs'],
+  images: {
+    unoptimized: false,
+  },
+  typescript: {
+    // Build succeeds locally; don't let stale caches break Vercel builds
+    ignoreBuildErrors: false,
   },
 }
 
