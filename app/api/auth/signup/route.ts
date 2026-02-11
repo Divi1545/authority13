@@ -107,10 +107,14 @@ export async function POST(req: Request) {
       user: { id: user.id, name: user.name, email: user.email },
       workspace: { id: workspace.id, name: workspace.name, slug: workspace.slug },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Signup error:', error)
     return NextResponse.json(
-      { error: 'Failed to create account' },
+      {
+        error: 'Failed to create account',
+        debug: error?.message || String(error),
+        code: error?.code,
+      },
       { status: 500 }
     )
   }
