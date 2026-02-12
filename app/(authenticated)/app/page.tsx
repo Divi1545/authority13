@@ -313,8 +313,8 @@ export default function MissionControlPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-background to-background/80">
-      <div className="border-b border-border/70 px-5 py-3 bg-background/80 backdrop-blur">
+    <div className="h-full flex flex-col bg-background">
+      <div className="border-b border-border px-5 py-3 bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground">Playground</p>
@@ -349,9 +349,9 @@ export default function MissionControlPage() {
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
-        <section className="xl:w-[36%] xl:min-w-[360px] xl:max-w-[540px] border-b xl:border-b-0 xl:border-r border-border/70">
+        <section className="xl:w-[36%] xl:min-w-[360px] xl:max-w-[540px] border-b xl:border-b-0 xl:border-r border-border">
           <div className="h-full flex flex-col">
-            <div className="px-4 py-3 border-b border-border/70 bg-card/60">
+            <div className="px-4 py-3 border-b border-border bg-white">
               <h2 className="font-semibold flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 Prompt Commander
@@ -723,9 +723,34 @@ export default function MissionControlPage() {
                         onChange={(e) => setProvider(e.target.value)}
                         className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                       >
-                        <option value="openai">OpenAI</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="google">Google</option>
+                        <optgroup label="LLM Providers">
+                          <option value="openai">OpenAI</option>
+                          <option value="anthropic">Anthropic</option>
+                          <option value="google">Google AI</option>
+                          <option value="deepseek">DeepSeek</option>
+                          <option value="mistral">Mistral AI</option>
+                          <option value="cohere">Cohere</option>
+                          <option value="groq">Groq</option>
+                          <option value="perplexity">Perplexity</option>
+                          <option value="together">Together AI</option>
+                          <option value="xai">xAI (Grok)</option>
+                        </optgroup>
+                        <optgroup label="Image Generation">
+                          <option value="stability">Stability AI</option>
+                          <option value="replicate">Replicate</option>
+                          <option value="fal">Fal.ai</option>
+                          <option value="leonardo">Leonardo AI</option>
+                        </optgroup>
+                        <optgroup label="Voice AI">
+                          <option value="vapi">VAPI</option>
+                          <option value="elevenlabs">ElevenLabs</option>
+                          <option value="deepgram">Deepgram</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                          <option value="twilio">Twilio</option>
+                          <option value="sendgrid">SendGrid</option>
+                          <option value="slack">Slack</option>
+                        </optgroup>
                       </select>
                     </div>
                     <div>
@@ -742,6 +767,10 @@ export default function MissionControlPage() {
                       {savingApiKey ? 'Saving...' : 'Save Key'}
                     </Button>
                   </form>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    For all 80+ integrations, visit{' '}
+                    <a href="/app/settings" className="underline hover:text-foreground">Settings → Integrations</a>
+                  </p>
                   {!canManageSettings && (
                     <p className="text-xs text-muted-foreground">
                       Admin role required to manage API keys.

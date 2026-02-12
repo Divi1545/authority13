@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { requireWorkspaceAccess } from '@/lib/workspace'
 import { encrypt, maskSecret } from '@/lib/encryption'
 import { createAuditEvent, AuditEventTypes } from '@/lib/audit'
+import { getAllProviderIds } from '@/lib/providers'
 
 export async function GET(req: Request) {
   try {
@@ -53,7 +54,8 @@ export async function POST(req: Request) {
 
     await requireWorkspaceAccess((session.user as any).id, workspaceId, 'admin')
 
-    if (!['openai', 'anthropic', 'google'].includes(provider)) {
+    const validProviders = getAllProviderIds()
+    if (!validProviders.includes(provider)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
     }
 

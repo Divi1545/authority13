@@ -64,9 +64,9 @@ export function AppSidebar() {
   }, [session])
 
   return (
-    <div className="w-64 border-r bg-card flex flex-col">
+    <div className="w-64 border-r bg-white flex flex-col">
       <div className="p-4">
-        <Link href="/app" className="text-2xl font-bold">
+        <Link href="/app" className="text-xl font-semibold tracking-tight text-foreground">
           Authority13
         </Link>
       </div>
@@ -81,13 +81,13 @@ export function AppSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
+                  ? 'bg-neutral-100 text-neutral-900'
+                  : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
               )}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4" />
               {item.name}
             </Link>
           )
@@ -101,11 +101,11 @@ export function AppSidebar() {
             <Link
               href="/admin"
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors bg-purple-600/10 hover:bg-purple-600/20 border border-purple-600/30'
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200'
               )}
             >
-              <Shield className="w-5 h-5 text-purple-600" />
-              <span className="font-medium">Super Admin</span>
+              <Shield className="w-4 h-4" />
+              <span>Super Admin</span>
             </Link>
             <Separator className="my-2" />
           </>
@@ -118,13 +118,13 @@ export function AppSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-accent'
+                  ? 'bg-neutral-100 text-neutral-900'
+                  : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
               )}
             >
-              <item.icon className="w-5 h-5" />
+              <item.icon className="w-4 h-4" />
               {item.name}
             </Link>
           )
