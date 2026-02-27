@@ -12,7 +12,6 @@ import {
   ExternalLink,
   Loader2,
   CheckCircle2,
-  Bot,
   Sparkles,
   ChevronDown,
   ChevronRight,
@@ -35,30 +34,60 @@ interface Subtask {
   status: 'pending' | 'running' | 'done'
 }
 
-interface SubtaskResult {
-  index: number
-  result: string
-}
-
 interface CommanderChatProps {
   onTaskCreated?: () => void
 }
 
+const STORAGE_KEY = 'a13_commander_state'
+
+function loadSaved() {
+  try {
+    const raw = typeof window !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+function saveState(state: any) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch {
+    // storage full or unavailable
+  }
+}
+
 export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
+  const saved = useRef(loadSaved())
+
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null)
 
-  const [statusMessage, setStatusMessage] = useState('')
-  const [plan, setPlan] = useState<{ objective: string; subtasks: Subtask[] } | null>(null)
-  const [subtaskResults, setSubtaskResults] = useState<Record<number, string>>({})
-  const [expandedResults, setExpandedResults] = useState<Record<number, boolean>>({})
-  const [completeSummary, setCompleteSummary] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [history, setHistory] = useState<Array<{ role: string; content: string; plan?: any; results?: any[] }>>([])
+  const [statusMessage, setStatusMessage] = useState(saved.current?.statusMessage || '')
+  const [plan, setPlan] = useState<{ objective: string; subtasks: Subtask[] } | null>(saved.current?.plan || null)
+  const [subtaskResults, setSubtaskResults] = useState<Record<number, string>>(saved.current?.subtaskResults || {})
+  const [expandedResults, setExpandedResults] = useState<Record<number, boolean>>(saved.current?.expandedResults || {})
+  const [completeSummary, setCompleteSummary] = useState(saved.current?.completeSummary || '')
+  const [errorMessage, setErrorMessage] = useState(saved.current?.errorMessage || '')
+  const [history, setHistory] = useState<Array<{ role: string; content: string; plan?: any; results?: any[] }>>(saved.current?.history || [])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Persist state to sessionStorage on every meaningful change
+  useEffect(() => {
+    saveState({ history, plan, subtaskResults, expandedResults, completeSummary, errorMessage, statusMessage })
+  }, [history, plan, subtaskResults, expandedResults, completeSummary, errorMessage, statusMessage])
+
+  // If we restored a stale in-progress status from a previous session, clear it
+  useEffect(() => {
+    if (statusMessage && !loading && !completeSummary && !errorMessage) {
+      setStatusMessage('')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const checkApiKeys = async () => {
