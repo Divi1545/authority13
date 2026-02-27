@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { encrypt, decrypt } from '@/lib/encryption'
 import { setTelegramWebhook, deleteTelegramWebhook, getTelegramBotInfo } from '@/lib/channels/telegram'
+import { telegramConnectSchema, validateBody } from '@/lib/validation'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -37,8 +38,10 @@ export async function POST(req: Request) {
   })
   if (!membership) return NextResponse.json({ error: 'No workspace' }, { status: 404 })
 
-  const { botToken } = await req.json()
-  if (!botToken) return NextResponse.json({ error: 'Bot token required' }, { status: 400 })
+  const body = await req.json()
+  const validation = validateBody(telegramConnectSchema, body)
+  if (!validation.success) return NextResponse.json({ error: validation.error }, { status: 400 })
+  const { botToken } = validation.data
 
   try {
     const botInfo = await getTelegramBotInfo(botToken)

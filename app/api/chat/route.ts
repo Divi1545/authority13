@@ -3,8 +3,11 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { decrypt } from '@/lib/encryption'
 import { createAuditEvent, AuditEventTypes } from '@/lib/audit'
-import { getAllTools, getTool, formatToolsForLLM, type ToolContext } from '@/lib/tools'
-import { AGENT_CONFIGS, MAX_AGENT_DEPTH, MAX_CHILDREN_PER_AGENT } from '@/lib/agents/types'
+import { getTool, formatToolsForLLM, type ToolContext } from '@/lib/tools'
+import { AGENT_CONFIGS } from '@/lib/agents/types'
+import { chatMessageSchema, validateBody } from '@/lib/validation'
+import { estimateCost, checkSpendLimit } from '@/lib/cost-estimator'
+import { getMemoryContext, saveMemory } from '@/lib/memory/store'
 import OpenAI from 'openai'
 
 export const runtime = 'nodejs'
@@ -13,6 +16,8 @@ export const maxDuration = 120
 function sse(event: string, data: any): string {
   return `data: ${JSON.stringify({ event, ...data })}\n\n`
 }
+
+const LLM_TIMEOUT = 90_000
 
 const COMMANDER_SYSTEM = `You are the Commander of Authority13, an AI Workforce Operating System.
 
@@ -36,9 +41,9 @@ When given an objective, create a structured execution plan as JSON:
 Available tools that agents can use:
 TOOLS_LIST
 
-Keep plans to 3-6 subtasks. Assign the right specialist agent and suggest which tools to use. Be specific.`
+Keep plans to 3-6 subtasks. Assign the right specialist agent and suggest which tools to use. Be specific and actionable.`
 
-function buildAgentPrompt(agentType: string, toolsList: string): string {
+function buildAgentPrompt(agentType: string, toolsList: string, memoryContext: string): string {
   const config = AGENT_CONFIGS[agentType] || AGENT_CONFIGS.analyst
   return `${config.systemPrompt}
 
@@ -52,7 +57,7 @@ After using tools, synthesize the results into a clear deliverable.
 Available tools:
 ${toolsList}
 
-If no tool is needed, just provide your expert output directly.`
+If no tool is needed, just provide your expert output directly.${memoryContext}`
 }
 
 async function callLLM(
@@ -60,16 +65,23 @@ async function callLLM(
   model: string,
   messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
   temperature = 0.7
-): Promise<{ content: string; tokens: number }> {
-  const res = await client.chat.completions.create({
-    model,
-    messages,
-    temperature,
-    max_tokens: 2500,
-  })
-  return {
-    content: res.choices[0]?.message?.content || '',
-    tokens: (res.usage?.total_tokens || 0),
+): Promise<{ content: string; promptTokens: number; completionTokens: number; totalTokens: number }> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), LLM_TIMEOUT)
+
+  try {
+    const res = await client.chat.completions.create(
+      { model, messages, temperature, max_tokens: 2500 },
+      { signal: controller.signal }
+    )
+    return {
+      content: res.choices[0]?.message?.content || '',
+      promptTokens: res.usage?.prompt_tokens || 0,
+      completionTokens: res.usage?.completion_tokens || 0,
+      totalTokens: res.usage?.total_tokens || 0,
+    }
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -81,32 +93,46 @@ function extractToolCalls(text: string): Array<{ tool: string; params: Record<st
     try {
       const parsed = JSON.parse(match[1].trim())
       if (parsed.tool) calls.push(parsed)
-    } catch { /* skip */ }
+    } catch { /* skip malformed */ }
   }
   return calls
 }
 
 export async function POST(req: Request) {
+  const startTime = Date.now()
+
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
+      return new Response(JSON.stringify({ error: 'Unauthorized', code: 'UNAUTHORIZED' }), { status: 401 })
     }
 
-    const { message } = await req.json()
+    const body = await req.json()
+    const validation = validateBody(chatMessageSchema, body)
+    if (!validation.success) {
+      return new Response(JSON.stringify({ error: validation.error, code: 'VALIDATION_ERROR' }), { status: 400 })
+    }
+    const { message } = validation.data
+
     const membership = await prisma.workspaceMember.findFirst({
       where: { userId: (session.user as any).id },
       include: { workspace: true },
     })
     if (!membership) {
-      return new Response(JSON.stringify({ error: 'No workspace found' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'No workspace found', code: 'NO_WORKSPACE' }), { status: 404 })
     }
 
     const apiKeySecret = await prisma.apiKeySecret.findFirst({
       where: { workspaceId: membership.workspaceId, provider: { in: ['openai', 'deepseek', 'groq'] } },
     })
     if (!apiKeySecret) {
-      return new Response(JSON.stringify({ error: 'No API key configured. Add one in Settings → Integrations.' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'No API key configured. Add one in Settings > Integrations.', code: 'NO_API_KEY' }), { status: 400 })
+    }
+
+    // Check spend limits before starting
+    const spendCheck = await checkSpendLimit(membership.workspaceId, 0.01)
+    if (!spendCheck.allowed) {
+      return new Response(JSON.stringify({ error: spendCheck.reason || 'Spend limit exceeded', code: 'SPEND_LIMIT' }), { status: 429 })
     }
 
     let apiKey: string
@@ -115,7 +141,7 @@ export async function POST(req: Request) {
       const parsed = (() => { try { return JSON.parse(raw) } catch { return null } })()
       apiKey = parsed?.key || raw
     } catch {
-      return new Response(JSON.stringify({ error: 'Failed to decrypt API key' }), { status: 500 })
+      return new Response(JSON.stringify({ error: 'Failed to decrypt API key', code: 'DECRYPT_ERROR' }), { status: 500 })
     }
 
     const task = await prisma.task.create({
@@ -128,10 +154,15 @@ export async function POST(req: Request) {
       },
     })
 
+    // Create a Run record for cost tracking
+    const run = await prisma.run.create({
+      data: { taskId: task.id, status: 'started', provider: apiKeySecret.provider, model: 'auto' },
+    })
+
     await createAuditEvent({
       workspaceId: membership.workspaceId,
       type: AuditEventTypes.TASK_CREATED,
-      payload: { taskId: task.id, title: task.title },
+      payload: { taskId: task.id, runId: run.id, title: task.title },
       actorUserId: (session.user as any).id,
     })
 
@@ -147,25 +178,29 @@ export async function POST(req: Request) {
     const toolsList = formatToolsForLLM()
     const toolContext: ToolContext = { workspaceId: membership.workspaceId, apiKey, provider: apiKeySecret.provider, model }
 
+    // Load memory context
+    const memoryContext = await getMemoryContext(membership.workspaceId, message)
+
     const encoder = new TextEncoder()
-    let totalTokens = 0
+    let totalPromptTokens = 0
+    let totalCompletionTokens = 0
 
     const stream = new ReadableStream({
       async start(controller) {
         const send = (event: string, data: any) => {
-          controller.enqueue(encoder.encode(sse(event, data)))
+          try { controller.enqueue(encoder.encode(sse(event, data))) } catch { /* stream closed */ }
         }
 
         try {
-          // Phase 1: Commander creates plan
           send('status', { message: 'Commander is analyzing your objective...', phase: 'planning' })
 
-          const commanderPrompt = COMMANDER_SYSTEM.replace('TOOLS_LIST', toolsList)
+          const commanderPrompt = COMMANDER_SYSTEM.replace('TOOLS_LIST', toolsList) + memoryContext
           const planResult = await callLLM(client, model, [
             { role: 'system', content: commanderPrompt },
             { role: 'user', content: `Create an execution plan for: ${message}` },
           ], 0.3)
-          totalTokens += planResult.tokens
+          totalPromptTokens += planResult.promptTokens
+          totalCompletionTokens += planResult.completionTokens
 
           let plan: any
           try {
@@ -180,9 +215,9 @@ export async function POST(req: Request) {
             }
           }
 
+          const totalTokens = totalPromptTokens + totalCompletionTokens
           send('plan', { plan, tokensUsed: totalTokens })
 
-          // Phase 2: Execute each subtask with tools
           const subtasks = plan.subtasks || []
           const allResults: any[] = []
 
@@ -191,16 +226,20 @@ export async function POST(req: Request) {
             const agentType = subtask.agent || 'analyst'
             const agentConfig = AGENT_CONFIGS[agentType] || AGENT_CONFIGS.analyst
 
-            send('subtask_start', { index: i, subtask: { ...subtask, status: 'running' }, agent: { type: agentType, label: agentConfig.label, color: agentConfig.color } })
+            send('subtask_start', {
+              index: i,
+              subtask: { ...subtask, status: 'running' },
+              agent: { type: agentType, label: agentConfig.label, color: agentConfig.color },
+            })
 
-            const agentPrompt = buildAgentPrompt(agentType, toolsList)
+            const agentPrompt = buildAgentPrompt(agentType, toolsList, memoryContext)
             const agentResult = await callLLM(client, model, [
               { role: 'system', content: agentPrompt },
               { role: 'user', content: `Execute this task:\n\nTitle: ${subtask.title}\nDescription: ${subtask.description}\nOriginal objective: ${message}\n\nUse tools if helpful. Provide a detailed, actionable result.` },
             ])
-            totalTokens += agentResult.tokens
+            totalPromptTokens += agentResult.promptTokens
+            totalCompletionTokens += agentResult.completionTokens
 
-            // Execute any tool calls the agent made
             const toolCalls = extractToolCalls(agentResult.content)
             const toolResults: any[] = []
 
@@ -208,49 +247,76 @@ export async function POST(req: Request) {
               const tool = getTool(tc.tool)
               if (tool) {
                 send('tool_call', { index: i, tool: tc.tool, params: tc.params })
-                const result = await tool.execute(tc.params, toolContext)
-                toolResults.push({ tool: tc.tool, ...result })
-                send('tool_result', { index: i, tool: tc.tool, success: result.success, output: result.output.slice(0, 300) })
+                try {
+                  const result = await tool.execute(tc.params, toolContext)
+                  toolResults.push({ tool: tc.tool, ...result })
+                  send('tool_result', { index: i, tool: tc.tool, success: result.success, output: result.output.slice(0, 300) })
+                } catch (toolErr: any) {
+                  send('tool_result', { index: i, tool: tc.tool, success: false, output: `Tool error: ${toolErr.message}` })
+                }
               }
             }
 
-            // If agent used tools, get a synthesis
             let finalResult = agentResult.content
             if (toolResults.length > 0) {
               const synthesisResult = await callLLM(client, model, [
                 { role: 'system', content: agentPrompt },
-                { role: 'user', content: `You executed these tools:\n\n${toolResults.map((r) => `Tool: ${r.tool}\nResult: ${r.output}`).join('\n\n')}\n\nNow synthesize the results into a clear deliverable for the task: ${subtask.title}` },
+                { role: 'user', content: `You executed these tools:\n\n${toolResults.map((r) => `Tool: ${r.tool}\nResult: ${r.output}`).join('\n\n')}\n\nNow synthesize the results into a clear deliverable for: ${subtask.title}` },
               ])
-              totalTokens += synthesisResult.tokens
+              totalPromptTokens += synthesisResult.promptTokens
+              totalCompletionTokens += synthesisResult.completionTokens
               finalResult = synthesisResult.content
             }
 
-            // Clean tool blocks from final result
             finalResult = finalResult.replace(/```tool[\s\S]*?```/g, '').trim()
-
             allResults.push({ subtaskId: subtask.id, agent: agentType, title: subtask.title, result: finalResult, toolCalls: toolResults })
 
+            const currentTotal = totalPromptTokens + totalCompletionTokens
             send('subtask_done', {
               index: i,
               subtask: { ...subtask, status: 'done' },
               result: finalResult.slice(0, 800),
               toolCalls: toolResults.map((r) => ({ tool: r.tool, success: r.success })),
-              tokensUsed: totalTokens,
+              tokensUsed: currentTotal,
             })
           }
 
-          // Phase 3: Complete
-          await prisma.task.update({ where: { id: task.id }, data: { status: 'completed' } })
+          // Calculate cost and update Run record
+          const finalTokens = totalPromptTokens + totalCompletionTokens
+          const cost = estimateCost(model, totalPromptTokens, totalCompletionTokens)
 
+          await prisma.run.update({
+            where: { id: run.id },
+            data: {
+              status: 'completed',
+              endedAt: new Date(),
+              model,
+              promptTokens: totalPromptTokens,
+              completionTokens: totalCompletionTokens,
+              costEstimateUsd: cost,
+            },
+          })
+
+          await prisma.task.update({ where: { id: task.id }, data: { status: 'completed', activeRunId: run.id } })
+
+          // Auto-save a memory entry
+          const memorySummary = `Task: ${message.slice(0, 100)}. Completed ${subtasks.length} subtask(s) with ${allResults.reduce((a, r) => a + (r.toolCalls?.length || 0), 0)} tool call(s). Cost: $${cost.toFixed(4)}.`
+          await saveMemory(membership.workspaceId, 'commander', memorySummary, { taskId: task.id, category: 'result' }).catch(() => {})
+
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
           send('complete', {
             taskId: task.id,
-            summary: `Completed ${subtasks.length} task(s) using ${allResults.reduce((a, r) => a + (r.toolCalls?.length || 0), 0)} tool call(s). Total tokens: ${totalTokens.toLocaleString()}`,
+            summary: `Completed ${subtasks.length} task(s) with ${allResults.reduce((a, r) => a + (r.toolCalls?.length || 0), 0)} tool call(s). Tokens: ${finalTokens.toLocaleString()} | Cost: $${cost.toFixed(4)} | Time: ${elapsed}s`,
             results: allResults,
-            tokensUsed: totalTokens,
+            tokensUsed: finalTokens,
+            costUsd: cost,
           })
         } catch (err: any) {
-          send('error', { message: err?.message || 'Execution failed' })
+          const errMsg = err?.name === 'AbortError' ? 'Request timed out. Try a simpler objective.' : (err?.message || 'Execution failed')
+          send('error', { message: errMsg })
+          await prisma.run.update({ where: { id: run.id }, data: { status: 'failed', endedAt: new Date(), errorJson: JSON.stringify({ message: errMsg }) } }).catch(() => {})
           await prisma.task.update({ where: { id: task.id }, data: { status: 'failed' } }).catch(() => {})
+          console.error(`[chat] Task ${task.id} failed after ${((Date.now() - startTime) / 1000).toFixed(1)}s:`, errMsg)
         } finally {
           controller.close()
         }
@@ -261,6 +327,7 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
     })
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error?.message || 'Failed to process' }), { status: 500 })
+    console.error('[chat] Request error:', error?.message)
+    return new Response(JSON.stringify({ error: error?.message || 'Failed to process', code: 'INTERNAL_ERROR' }), { status: 500 })
   }
 }

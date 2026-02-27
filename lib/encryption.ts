@@ -7,7 +7,10 @@ const TAG_LENGTH = 16
 const MASTER_KEY = process.env.MASTER_KEY
 
 if (!MASTER_KEY || MASTER_KEY.length < 32) {
-  console.error('MASTER_KEY must be set and at least 32 characters long')
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('MASTER_KEY must be set and at least 32 characters long')
+  }
+  console.error('WARNING: MASTER_KEY must be set and at least 32 characters long')
 }
 
 function getKey(salt: Buffer): Buffer {

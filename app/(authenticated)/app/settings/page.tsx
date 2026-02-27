@@ -14,7 +14,7 @@ import {
   type ProviderCategory,
   type ProviderConfig,
 } from '@/lib/providers'
-import { Check, ExternalLink, Search, X } from 'lucide-react'
+import { Check, ExternalLink, Search, X, DollarSign, Users, Trash2, UserPlus, Loader2 } from 'lucide-react'
 
 export default function SettingsPage() {
   const [workspace, setWorkspace] = useState<any>(null)
@@ -343,48 +343,218 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="spend">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Spend Limits</CardTitle>
-              <CardDescription>
-                Set daily and monthly spending caps for AI model usage
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <Label>Daily Limit (USD)</Label>
-                  <Input type="number" placeholder="100" disabled />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Coming soon
-                  </p>
-                </div>
-                <div>
-                  <Label>Monthly Limit (USD)</Label>
-                  <Input type="number" placeholder="1000" disabled />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Coming soon
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <SpendLimitsTab />
         </TabsContent>
 
         <TabsContent value="team">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Team Members</CardTitle>
-              <CardDescription>Manage workspace members and roles</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Team management coming soon.
-              </p>
-            </CardContent>
-          </Card>
+          <TeamTab />
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+function SpendLimitsTab() {
+  const [limits, setLimits] = useState({ dailyLimitUsd: 50, monthlyLimitUsd: 500 })
+  const [usage, setUsage] = useState({ daily: 0, monthly: 0 })
+  const [saving, setSaving] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings/spend-limits')
+      .then((r) => r.json())
+      .then((data) => { setLimits(data.limits); setUsage(data.usage); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      await fetch('/api/settings/spend-limits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(limits),
+      })
+    } catch { /* */ }
+    setSaving(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <DollarSign className="w-4 h-4" />
+          Spend Limits
+        </CardTitle>
+        <CardDescription>Set daily and monthly spending caps for AI model usage. Tasks are blocked when limits are reached.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label>Daily Limit (USD)</Label>
+            <Input
+              type="number"
+              value={limits.dailyLimitUsd}
+              onChange={(e) => setLimits((l) => ({ ...l, dailyLimitUsd: Number(e.target.value) }))}
+            />
+            {loaded && (
+              <div className="text-xs text-muted-foreground">
+                Used today: <span className="font-medium">${usage.daily.toFixed(4)}</span> / ${limits.dailyLimitUsd}
+              </div>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>Monthly Limit (USD)</Label>
+            <Input
+              type="number"
+              value={limits.monthlyLimitUsd}
+              onChange={(e) => setLimits((l) => ({ ...l, monthlyLimitUsd: Number(e.target.value) }))}
+            />
+            {loaded && (
+              <div className="text-xs text-muted-foreground">
+                Used this month: <span className="font-medium">${usage.monthly.toFixed(4)}</span> / ${limits.monthlyLimitUsd}
+              </div>
+            )}
+          </div>
+        </div>
+        <Button onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Limits'}
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function TeamTab() {
+  const [members, setMembers] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('viewer')
+  const [inviting, setInviting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => { fetchMembers() }, [])
+
+  const fetchMembers = async () => {
+    try {
+      const res = await fetch('/api/settings/team')
+      const data = await res.json()
+      setMembers(data.members || [])
+    } catch { /* */ }
+    setLoading(false)
+  }
+
+  const handleInvite = async () => {
+    if (!inviteEmail) return
+    setInviting(true)
+    setError('')
+    try {
+      const res = await fetch('/api/settings/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setInviteEmail('')
+      fetchMembers()
+    } catch (err: any) {
+      setError(err.message)
+    }
+    setInviting(false)
+  }
+
+  const handleRemove = async (memberId: string) => {
+    if (!confirm('Remove this team member?')) return
+    await fetch(`/api/settings/team?memberId=${memberId}`, { method: 'DELETE' })
+    fetchMembers()
+  }
+
+  const handleRoleChange = async (memberId: string, role: string) => {
+    await fetch('/api/settings/team', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId, role }),
+    })
+    fetchMembers()
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Users className="w-4 h-4" />
+          Team Members
+        </CardTitle>
+        <CardDescription>Manage workspace members and their roles</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <Label>Email Address</Label>
+            <Input
+              placeholder="colleague@company.com"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label>Role</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm mt-1"
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value)}
+            >
+              <option value="viewer">Viewer</option>
+              <option value="operator">Operator</option>
+              <option value="manager">Manager</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <Button onClick={handleInvite} disabled={inviting || !inviteEmail}>
+            {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4 mr-1.5" />}
+            Add
+          </Button>
+        </div>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <Separator />
+
+        {loading ? (
+          <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+        ) : (
+          <div className="space-y-2">
+            {members.map((m) => (
+              <div key={m.id} className="flex items-center gap-3 p-3 rounded-lg border">
+                <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-medium">
+                  {(m.name || m.email)?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{m.name || m.email}</p>
+                  <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                </div>
+                <select
+                  className="text-xs border rounded px-2 py-1"
+                  value={m.role}
+                  onChange={(e) => handleRoleChange(m.id, e.target.value)}
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="operator">Operator</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <Button variant="ghost" size="sm" className="text-red-500" onClick={() => handleRemove(m.id)}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            ))}
+            {members.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No team members yet</p>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

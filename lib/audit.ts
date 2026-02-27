@@ -33,6 +33,7 @@ export const AuditEventTypes = {
   APPROVAL_APPROVED: 'approval.approved',
   APPROVAL_REJECTED: 'approval.rejected',
   CONNECTOR_ADDED: 'connector.added',
+  CONNECTOR_REMOVED: 'connector.removed',
   CONNECTOR_UPDATED: 'connector.updated',
   API_KEY_ADDED: 'api_key.added',
   API_KEY_UPDATED: 'api_key.updated',
