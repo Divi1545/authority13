@@ -16,6 +16,8 @@ import {
   ChevronDown,
   ChevronRight,
   AlertCircle,
+  Wrench,
+  Coins,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -71,6 +73,8 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
   const [expandedResults, setExpandedResults] = useState<Record<number, boolean>>(saved.current?.expandedResults || {})
   const [completeSummary, setCompleteSummary] = useState(saved.current?.completeSummary || '')
   const [errorMessage, setErrorMessage] = useState(saved.current?.errorMessage || '')
+  const [toolCalls, setToolCalls] = useState<Array<{ index: number; tool: string; params?: any; result?: string; success?: boolean }>>(saved.current?.toolCalls || [])
+  const [tokensUsed, setTokensUsed] = useState(saved.current?.tokensUsed || 0)
   const [history, setHistory] = useState<Array<{ role: string; content: string; plan?: any; results?: any[] }>>(saved.current?.history || [])
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -78,8 +82,8 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
 
   // Persist state to sessionStorage on every meaningful change
   useEffect(() => {
-    saveState({ history, plan, subtaskResults, expandedResults, completeSummary, errorMessage, statusMessage })
-  }, [history, plan, subtaskResults, expandedResults, completeSummary, errorMessage, statusMessage])
+    saveState({ history, plan, subtaskResults, expandedResults, completeSummary, errorMessage, statusMessage, toolCalls, tokensUsed })
+  }, [history, plan, subtaskResults, expandedResults, completeSummary, errorMessage, statusMessage, toolCalls, tokensUsed])
 
   // If we restored a stale in-progress status from a previous session, clear it
   useEffect(() => {
@@ -122,6 +126,8 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
     setExpandedResults({})
     setCompleteSummary('')
     setErrorMessage('')
+    setToolCalls([])
+    setTokensUsed(0)
   }
 
   const handleSend = async () => {
@@ -220,6 +226,17 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
         })
         setStatusMessage(`${AGENT_LABELS[data.subtask?.agent]?.label || 'Agent'} working on: ${data.subtask?.title}`)
         break
+      case 'tool_call':
+        setToolCalls((prev) => [...prev, { index: data.index, tool: data.tool, params: data.params }])
+        setStatusMessage(`Using tool: ${data.tool}`)
+        break
+      case 'tool_result':
+        setToolCalls((prev) => prev.map((tc) =>
+          tc.tool === data.tool && tc.index === data.index && !tc.result
+            ? { ...tc, result: data.output, success: data.success }
+            : tc
+        ))
+        break
       case 'subtask_done':
         setPlan((prev) => {
           if (!prev) return prev
@@ -228,6 +245,7 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
           return { ...prev, subtasks: updated }
         })
         setSubtaskResults((prev) => ({ ...prev, [data.index]: data.result || 'Done' }))
+        if (data.tokensUsed) setTokensUsed(data.tokensUsed)
         break
       case 'complete':
         setCompleteSummary(data.summary || 'All tasks completed.')
@@ -352,6 +370,24 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
                                 {isExpanded ? 'Hide result' : 'Show result'}
                               </button>
                             )}
+                            {/* Tool calls for this subtask */}
+                            {toolCalls.filter((tc) => tc.index === i).length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {toolCalls.filter((tc) => tc.index === i).map((tc, tci) => (
+                                  <div key={tci} className="flex items-center gap-1.5 text-xs">
+                                    <Wrench className="h-3 w-3 text-muted-foreground" />
+                                    <span className="font-mono text-muted-foreground">{tc.tool}</span>
+                                    {tc.success !== undefined && (
+                                      tc.success
+                                        ? <CheckCircle2 className="h-3 w-3 text-green-500" />
+                                        : <AlertCircle className="h-3 w-3 text-red-500" />
+                                    )}
+                                    {tc.success === undefined && <Loader2 className="h-3 w-3 animate-spin text-blue-500" />}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
                             {result && isExpanded && (
                               <div className="mt-2 p-3 bg-neutral-50 rounded-lg text-xs text-neutral-700 whitespace-pre-wrap border border-neutral-200">
                                 {result}
@@ -368,9 +404,17 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
 
             {/* Completion */}
             {completeSummary && (
-              <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                {completeSummary}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                  {completeSummary}
+                </div>
+                {tokensUsed > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
+                    <Coins className="h-3 w-3" />
+                    {tokensUsed.toLocaleString()} tokens used
+                  </div>
+                )}
               </div>
             )}
 

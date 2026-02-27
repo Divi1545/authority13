@@ -76,7 +76,8 @@ model ApiKeySecret {
 model Connector {
   id              String   @id @default(cuid())
   workspaceId     String
-  type            String   // smtp, webhook, calendar, stripe
+  name            String   @default("Untitled")
+  type            String   // telegram, discord, slack, whatsapp, smtp, webhook, calendar, stripe
   encryptedConfig String   @db.Text
   isEnabled       Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -85,6 +86,7 @@ model Connector {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([type])
 }
 
 model Agent {

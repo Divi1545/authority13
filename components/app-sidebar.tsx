@@ -21,14 +21,20 @@ import {
   Database,
   PanelLeftClose,
   PanelLeft,
+  MessageCircle,
+  BarChart3,
+  Brain,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useEffect, useState } from 'react'
 
 const navigation = [
   { name: 'Mission Control', href: '/app', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/app/dashboard', icon: BarChart3 },
   { name: 'Tasks', href: '/app/tasks', icon: ListTodo },
   { name: 'Agents', href: '/app/agents', icon: Users },
+  { name: 'Channels', href: '/app/channels', icon: MessageCircle },
+  { name: 'Memory', href: '/app/memory', icon: Brain },
   { name: 'Connectors', href: '/app/connectors', icon: Plug },
   { name: 'Approvals', href: '/app/approvals', icon: CheckSquare },
   { name: 'SQL Editor', href: '/app/sql', icon: Database },

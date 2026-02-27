@@ -6,28 +6,54 @@ import { GlassCard, GradientOrb, SectionShell } from '@/components/marketing/pri
 const features = [
   {
     title: 'Mission Control',
-    description: 'Live agent graph, execution timeline, and console in one command center.',
+    description: 'Full-screen command center with live execution plans, agent cards, and real-time streaming.',
+    icon: '🎯',
   },
   {
-    title: 'In-app Agent Calls',
-    description: 'Run voice briefings with your AI workforce directly in the platform.',
+    title: 'Real Tool System',
+    description: 'Agents use web search, scraping, email, webhooks, file generation, and data analysis autonomously.',
+    icon: '🔧',
   },
   {
-    title: 'Approvals + Audit Trails',
-    description: 'Keep humans in the loop and retain complete logs for compliance.',
+    title: 'Multi-Channel',
+    description: 'Deploy agents on Telegram, Discord, Slack, WhatsApp, and email. One brain, every channel.',
+    icon: '💬',
   },
   {
-    title: 'BYOK with Spend Limits',
-    description: 'Use your own model keys and maintain complete cost control.',
+    title: 'Persistent Memory',
+    description: 'Agents remember past decisions, context, and insights. They get smarter with every task.',
+    icon: '🧠',
   },
   {
-    title: 'Tag Agents in Chat',
-    description: 'Delegate directly with @Commander and specialist employees.',
+    title: 'BYOK Architecture',
+    description: 'Bring your own keys for OpenAI, Deepseek, Groq, and more. Your data stays yours.',
+    icon: '🔑',
   },
   {
-    title: 'Multi-tenant Workspaces',
-    description: 'Role-based access across teams, departments, and clients.',
+    title: 'Approvals + Audit',
+    description: 'Human-in-the-loop for risky actions. Complete audit trail for compliance.',
+    icon: '🛡️',
   },
+  {
+    title: 'Sub-Agent System',
+    description: 'Commander delegates to Growth, Ops, Support, and Analyst specialists automatically.',
+    icon: '🤖',
+  },
+  {
+    title: 'Live Streaming',
+    description: 'Watch every step in real-time: planning, tool calls, agent execution, and results.',
+    icon: '⚡',
+  },
+  {
+    title: 'AGI Dashboard',
+    description: 'Performance metrics, task history, success rates, and cost tracking in one view.',
+    icon: '📊',
+  },
+]
+
+const integrations = [
+  'OpenAI', 'Deepseek', 'Groq', 'Anthropic', 'Google', 'Mistral',
+  'Telegram', 'Discord', 'Slack', 'WhatsApp', 'Email', 'Webhooks',
 ]
 
 export default function HomePage() {
@@ -35,6 +61,7 @@ export default function HomePage() {
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-slate-50 to-sky-50/40">
       <GradientOrb className="-left-24 -top-20 h-72 w-72" />
       <GradientOrb className="right-0 top-56 h-80 w-80" />
+      <GradientOrb className="-right-32 top-[800px] h-96 w-96" />
 
       <nav className="sticky top-0 z-40 border-b border-white/60 bg-white/70 backdrop-blur-md">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
@@ -56,24 +83,25 @@ export default function HomePage() {
         </div>
       </nav>
 
+      {/* Hero */}
       <SectionShell>
-        <GlassCard className="fade-up glass-hover p-8 md:p-12">
+        <GlassCard className="fade-up glass-hover p-8 md:p-14">
           <div className="mx-auto max-w-4xl text-center">
-            <p className="mb-5 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
-              AI Workforce Operating System
+            <p className="mb-5 inline-flex rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600">
+              AGI Workforce Platform
             </p>
             <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-              AI Employees.
+              AI Agents That Actually
               <br />
-              Real Work. Full Control.
+              <span className="bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">Do The Work</span>
             </h1>
             <p className="mx-auto mt-6 max-w-3xl text-base text-muted-foreground sm:text-lg">
-              Run your business with digital employees that plan, execute, and report, with approvals,
-              audit logs, and live visibility in one mission-control workspace.
+              Not just chat. Real execution. Your AI workforce plans, uses tools, searches the web,
+              sends emails, generates files, and reports back -- with full human oversight.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link href="/signup">
-                <Button size="lg" className="px-8">
+                <Button size="lg" className="px-8 interactive-button">
                   Start Free Trial
                 </Button>
               </Link>
@@ -83,64 +111,69 @@ export default function HomePage() {
                 </Button>
               </Link>
             </div>
-            <div className="mt-8 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
-              <div>BYOK + encrypted secrets</div>
-              <div>Human-in-the-loop approvals</div>
-              <div>Live execution visibility</div>
+            <div className="mt-8 grid gap-3 text-sm text-muted-foreground sm:grid-cols-4">
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-green-500" />
+                Real tool execution
+              </div>
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-blue-500" />
+                Multi-channel deploy
+              </div>
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-purple-500" />
+                Persistent memory
+              </div>
+              <div className="flex items-center justify-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-amber-500" />
+                Live streaming
+              </div>
             </div>
           </div>
         </GlassCard>
       </SectionShell>
 
+      {/* How It Works */}
       <SectionShell>
         <div className="fade-up-delay-1">
           <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">How It Works</h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">
-            One command in plain English, then watch the workforce plan and execute with safety controls.
+            One command. Multiple agents. Real tools. Visible execution.
           </p>
         </div>
-        <div className="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-3">
+        <div className="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-4">
           {[
-            {
-              step: '1',
-              title: 'Tell the Commander',
-              body: 'Describe your goal in plain English and set your preferred outcome.',
-            },
-            {
-              step: '2',
-              title: 'Watch Agents Assemble',
-              body: 'Commander routes work to specialist employees and executes in sequence.',
-            },
-            {
-              step: '3',
-              title: 'Approve and Track',
-              body: 'Review risky actions, approve instantly, and keep a complete audit record.',
-            },
+            { step: '1', title: 'Give the Objective', body: 'Describe your goal in plain English. The Commander analyzes and creates a plan.' },
+            { step: '2', title: 'Agents Assemble', body: 'Specialist agents (Growth, Ops, Support, Analyst) are assigned to subtasks.' },
+            { step: '3', title: 'Tools Execute', body: 'Agents use web search, email, webhooks, and more to complete real work.' },
+            { step: '4', title: 'Results Stream Live', body: 'Watch every step, tool call, and result in real-time. Approve and track.' },
           ].map((item) => (
             <Card key={item.step} className="glass-hover fade-up-delay-1">
               <CardHeader>
                 <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
                   {item.step}
                 </div>
-                <CardTitle>{item.title}</CardTitle>
+                <CardTitle className="text-lg">{item.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">{item.body}</p>
+                <p className="text-sm text-muted-foreground">{item.body}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       </SectionShell>
 
+      {/* Features Grid */}
       <SectionShell>
         <GlassCard className="fade-up-delay-2 p-8 md:p-10">
-          <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">Key Features</h2>
+          <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">Platform Features</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">
+            Everything you need to run an autonomous AI workforce
+          </p>
           <div className="mx-auto mt-10 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="glass-hover rounded-xl border border-slate-200/80 bg-white/80 p-4"
-              >
+              <div key={feature.title} className="glass-hover rounded-xl border border-slate-200/80 bg-white/80 p-5">
+                <div className="text-2xl mb-2">{feature.icon}</div>
                 <h3 className="font-semibold">{feature.title}</h3>
                 <p className="mt-2 text-sm text-muted-foreground">{feature.description}</p>
               </div>
@@ -149,6 +182,21 @@ export default function HomePage() {
         </GlassCard>
       </SectionShell>
 
+      {/* Integrations */}
+      <SectionShell className="pt-0">
+        <GlassCard className="fade-up p-8 text-center">
+          <h2 className="text-2xl font-semibold">Works With Everything</h2>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {integrations.map((name) => (
+              <span key={name} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
+                {name}
+              </span>
+            ))}
+          </div>
+        </GlassCard>
+      </SectionShell>
+
+      {/* Pricing Preview */}
       <SectionShell>
         <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
           Simple, Transparent Pricing
@@ -161,10 +209,10 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">
-                <li>✓ 1 workspace</li>
-                <li>✓ Commander + 2 agents</li>
-                <li>✓ BYOK required</li>
-                <li>✓ Basic approvals</li>
+                <li>&#10003; 1 workspace, 2 agents</li>
+                <li>&#10003; All tools included</li>
+                <li>&#10003; 1 channel (Telegram)</li>
+                <li>&#10003; Basic approvals</li>
               </ul>
             </CardContent>
           </Card>
@@ -172,15 +220,15 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle>Pro</CardTitle>
               <CardDescription>$149/month</CardDescription>
-              <div className="mt-2 text-xs text-primary">Most Popular</div>
+              <div className="mt-2 text-xs text-primary font-medium">Most Popular</div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">
-                <li>✓ Up to 5 agents</li>
-                <li>✓ Mission Control full UI</li>
-                <li>✓ Approvals + audit</li>
-                <li>✓ Email + calendar tools</li>
-                <li>✓ Weekly briefings</li>
+                <li>&#10003; 5 agents + all tools</li>
+                <li>&#10003; All channels</li>
+                <li>&#10003; Persistent memory</li>
+                <li>&#10003; AGI Dashboard</li>
+                <li>&#10003; Priority support</li>
               </ul>
             </CardContent>
           </Card>
@@ -191,11 +239,11 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">
-                <li>✓ Unlimited agents</li>
-                <li>✓ Multi-user workspace</li>
-                <li>✓ AI Boardroom</li>
-                <li>✓ Reports + analytics</li>
-                <li>✓ Priority support</li>
+                <li>&#10003; Unlimited everything</li>
+                <li>&#10003; Multi-user workspace</li>
+                <li>&#10003; AI Boardroom</li>
+                <li>&#10003; Custom integrations</li>
+                <li>&#10003; White-label option</li>
               </ul>
             </CardContent>
           </Card>
@@ -207,16 +255,17 @@ export default function HomePage() {
         </div>
       </SectionShell>
 
+      {/* CTA */}
       <SectionShell>
         <GlassCard className="fade-up p-10 text-center">
-          <h2 className="text-3xl font-semibold sm:text-4xl">Ready to Build Your AI Workforce?</h2>
+          <h2 className="text-3xl font-semibold sm:text-4xl">Build Your AI Workforce Today</h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Start free with your own model keys and launch your first digital team in minutes.
+            Start free with your own model keys. Deploy agents that use real tools, communicate on any channel, and remember everything.
           </p>
-          <div className="mt-8">
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/signup">
-              <Button size="lg" className="px-8">
-                Get Started Now
+              <Button size="lg" className="px-8 interactive-button">
+                Get Started Free
               </Button>
             </Link>
           </div>
@@ -225,7 +274,7 @@ export default function HomePage() {
 
       <footer className="border-t border-white/60 bg-white/70 py-8 backdrop-blur-sm">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>© 2026 Authority13 by AI Code Agency (Pvt) Ltd. All rights reserved.</p>
+          <p>&copy; 2026 Authority13 by AI Code Agency (Pvt) Ltd. All rights reserved.</p>
         </div>
       </footer>
     </div>

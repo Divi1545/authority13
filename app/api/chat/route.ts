@@ -3,43 +3,87 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { decrypt } from '@/lib/encryption'
 import { createAuditEvent, AuditEventTypes } from '@/lib/audit'
+import { getAllTools, getTool, formatToolsForLLM, type ToolContext } from '@/lib/tools'
+import { AGENT_CONFIGS, MAX_AGENT_DEPTH, MAX_CHILDREN_PER_AGENT } from '@/lib/agents/types'
 import OpenAI from 'openai'
 
 export const runtime = 'nodejs'
-export const maxDuration = 60
+export const maxDuration = 120
 
-const COMMANDER_SYSTEM_PROMPT = `You are the Commander Agent of Authority13, an AI Workforce Operating System.
+function sse(event: string, data: any): string {
+  return `data: ${JSON.stringify({ event, ...data })}\n\n`
+}
 
-When the user gives you an objective, you MUST respond with a structured execution plan in this EXACT JSON format — no markdown, no explanation, just raw JSON:
+const COMMANDER_SYSTEM = `You are the Commander of Authority13, an AI Workforce Operating System.
 
+When given an objective, create a structured execution plan as JSON:
 {
   "plan": {
-    "objective": "What the user wants",
+    "objective": "what the user wants",
     "subtasks": [
       {
         "id": "S1",
-        "agent": "growth",
-        "title": "Clear action title",
-        "description": "What this agent will do",
+        "agent": "growth|ops|support|analyst",
+        "title": "action title",
+        "description": "what to do",
+        "tools": ["tool_name"],
         "status": "pending"
       }
     ]
   }
 }
 
-Agent types: growth (marketing, content, outreach), ops (operations, scheduling, processes), support (customer service, communication), analyst (data, reports, insights).
+Available tools that agents can use:
+TOOLS_LIST
 
-Keep plans to 3-6 subtasks. Be specific and actionable.`
+Keep plans to 3-6 subtasks. Assign the right specialist agent and suggest which tools to use. Be specific.`
 
-const AGENT_SYSTEM_PROMPTS: Record<string, string> = {
-  growth: `You are the Growth Agent. Execute the given task related to marketing, content creation, lead generation, or outreach. Provide a detailed, actionable result. Be specific with copy, strategies, and deliverables.`,
-  ops: `You are the Ops Agent. Execute the given task related to operations, scheduling, process optimization, or internal workflows. Provide concrete steps, timelines, and process documentation.`,
-  support: `You are the Support Agent. Execute the given task related to customer service, user communication, ticket handling, or support documentation. Provide templates, scripts, and workflows.`,
-  analyst: `You are the Analyst Agent. Execute the given task related to data analysis, reporting, metrics, or insights. Provide structured analysis, recommendations, and frameworks.`,
+function buildAgentPrompt(agentType: string, toolsList: string): string {
+  const config = AGENT_CONFIGS[agentType] || AGENT_CONFIGS.analyst
+  return `${config.systemPrompt}
+
+You have access to these tools. To use a tool, respond with a JSON block:
+\`\`\`tool
+{"tool": "tool_name", "params": {"param1": "value1"}}
+\`\`\`
+
+After using tools, synthesize the results into a clear deliverable.
+
+Available tools:
+${toolsList}
+
+If no tool is needed, just provide your expert output directly.`
 }
 
-function createStreamEvent(event: string, data: any): string {
-  return `data: ${JSON.stringify({ event, ...data })}\n\n`
+async function callLLM(
+  client: OpenAI,
+  model: string,
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+  temperature = 0.7
+): Promise<{ content: string; tokens: number }> {
+  const res = await client.chat.completions.create({
+    model,
+    messages,
+    temperature,
+    max_tokens: 2500,
+  })
+  return {
+    content: res.choices[0]?.message?.content || '',
+    tokens: (res.usage?.total_tokens || 0),
+  }
+}
+
+function extractToolCalls(text: string): Array<{ tool: string; params: Record<string, any> }> {
+  const calls: Array<{ tool: string; params: Record<string, any> }> = []
+  const regex = /```tool\s*\n?([\s\S]*?)```/g
+  let match
+  while ((match = regex.exec(text)) !== null) {
+    try {
+      const parsed = JSON.parse(match[1].trim())
+      if (parsed.tool) calls.push(parsed)
+    } catch { /* skip */ }
+  }
+  return calls
 }
 
 export async function POST(req: Request) {
@@ -50,28 +94,19 @@ export async function POST(req: Request) {
     }
 
     const { message } = await req.json()
-
     const membership = await prisma.workspaceMember.findFirst({
       where: { userId: (session.user as any).id },
       include: { workspace: true },
     })
-
     if (!membership) {
       return new Response(JSON.stringify({ error: 'No workspace found' }), { status: 404 })
     }
 
     const apiKeySecret = await prisma.apiKeySecret.findFirst({
-      where: {
-        workspaceId: membership.workspaceId,
-        provider: { in: ['openai', 'deepseek', 'groq'] },
-      },
+      where: { workspaceId: membership.workspaceId, provider: { in: ['openai', 'deepseek', 'groq'] } },
     })
-
     if (!apiKeySecret) {
-      return new Response(
-        JSON.stringify({ error: 'No API key configured. Add one in Settings → Integrations.' }),
-        { status: 400 }
-      )
+      return new Response(JSON.stringify({ error: 'No API key configured. Add one in Settings → Integrations.' }), { status: 400 })
     }
 
     let apiKey: string
@@ -109,91 +144,113 @@ export async function POST(req: Request) {
     })
     const model = isDeepseek ? 'deepseek-chat' : isGroq ? 'llama-3.1-70b-versatile' : 'gpt-4o-mini'
 
+    const toolsList = formatToolsForLLM()
+    const toolContext: ToolContext = { workspaceId: membership.workspaceId, apiKey, provider: apiKeySecret.provider, model }
+
     const encoder = new TextEncoder()
+    let totalTokens = 0
+
     const stream = new ReadableStream({
       async start(controller) {
         const send = (event: string, data: any) => {
-          controller.enqueue(encoder.encode(createStreamEvent(event, data)))
+          controller.enqueue(encoder.encode(sse(event, data)))
         }
 
         try {
-          send('status', { message: 'Commander is analyzing your objective...' })
+          // Phase 1: Commander creates plan
+          send('status', { message: 'Commander is analyzing your objective...', phase: 'planning' })
 
-          const planResponse = await client.chat.completions.create({
-            model,
-            messages: [
-              { role: 'system', content: COMMANDER_SYSTEM_PROMPT },
-              { role: 'user', content: `Create an execution plan for: ${message}` },
-            ],
-            temperature: 0.3,
-            max_tokens: 2000,
-          })
+          const commanderPrompt = COMMANDER_SYSTEM.replace('TOOLS_LIST', toolsList)
+          const planResult = await callLLM(client, model, [
+            { role: 'system', content: commanderPrompt },
+            { role: 'user', content: `Create an execution plan for: ${message}` },
+          ], 0.3)
+          totalTokens += planResult.tokens
 
-          const planText = planResponse.choices[0]?.message?.content || ''
           let plan: any
           try {
-            let jsonStr = planText.trim()
-            if (jsonStr.startsWith('```')) {
-              jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '')
-            }
+            let jsonStr = planResult.content.trim()
+            if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '')
             const parsed = JSON.parse(jsonStr)
             plan = parsed.plan || parsed
           } catch {
             plan = {
               objective: message,
-              subtasks: [
-                { id: 'S1', agent: 'analyst', title: 'Analyze request', description: planText.slice(0, 200), status: 'pending' },
-              ],
+              subtasks: [{ id: 'S1', agent: 'analyst', title: 'Analyze and execute request', description: planResult.content.slice(0, 300), tools: [], status: 'pending' }],
             }
           }
 
-          send('plan', { plan })
+          send('plan', { plan, tokensUsed: totalTokens })
 
+          // Phase 2: Execute each subtask with tools
           const subtasks = plan.subtasks || []
-          const results: any[] = []
+          const allResults: any[] = []
 
           for (let i = 0; i < subtasks.length; i++) {
             const subtask = subtasks[i]
-            send('subtask_start', { index: i, subtask: { ...subtask, status: 'running' } })
+            const agentType = subtask.agent || 'analyst'
+            const agentConfig = AGENT_CONFIGS[agentType] || AGENT_CONFIGS.analyst
 
-            const agentPrompt = AGENT_SYSTEM_PROMPTS[subtask.agent] || AGENT_SYSTEM_PROMPTS.analyst
+            send('subtask_start', { index: i, subtask: { ...subtask, status: 'running' }, agent: { type: agentType, label: agentConfig.label, color: agentConfig.color } })
 
-            const subtaskResponse = await client.chat.completions.create({
-              model,
-              messages: [
+            const agentPrompt = buildAgentPrompt(agentType, toolsList)
+            const agentResult = await callLLM(client, model, [
+              { role: 'system', content: agentPrompt },
+              { role: 'user', content: `Execute this task:\n\nTitle: ${subtask.title}\nDescription: ${subtask.description}\nOriginal objective: ${message}\n\nUse tools if helpful. Provide a detailed, actionable result.` },
+            ])
+            totalTokens += agentResult.tokens
+
+            // Execute any tool calls the agent made
+            const toolCalls = extractToolCalls(agentResult.content)
+            const toolResults: any[] = []
+
+            for (const tc of toolCalls) {
+              const tool = getTool(tc.tool)
+              if (tool) {
+                send('tool_call', { index: i, tool: tc.tool, params: tc.params })
+                const result = await tool.execute(tc.params, toolContext)
+                toolResults.push({ tool: tc.tool, ...result })
+                send('tool_result', { index: i, tool: tc.tool, success: result.success, output: result.output.slice(0, 300) })
+              }
+            }
+
+            // If agent used tools, get a synthesis
+            let finalResult = agentResult.content
+            if (toolResults.length > 0) {
+              const synthesisResult = await callLLM(client, model, [
                 { role: 'system', content: agentPrompt },
-                { role: 'user', content: `Execute this task:\n\nTitle: ${subtask.title}\nDescription: ${subtask.description}\n\nOriginal objective: ${message}\n\nProvide a detailed, actionable result.` },
-              ],
-              temperature: 0.7,
-              max_tokens: 1500,
-            })
+                { role: 'user', content: `You executed these tools:\n\n${toolResults.map((r) => `Tool: ${r.tool}\nResult: ${r.output}`).join('\n\n')}\n\nNow synthesize the results into a clear deliverable for the task: ${subtask.title}` },
+              ])
+              totalTokens += synthesisResult.tokens
+              finalResult = synthesisResult.content
+            }
 
-            const result = subtaskResponse.choices[0]?.message?.content || 'Completed.'
-            results.push({ subtaskId: subtask.id, result })
+            // Clean tool blocks from final result
+            finalResult = finalResult.replace(/```tool[\s\S]*?```/g, '').trim()
+
+            allResults.push({ subtaskId: subtask.id, agent: agentType, title: subtask.title, result: finalResult, toolCalls: toolResults })
 
             send('subtask_done', {
               index: i,
               subtask: { ...subtask, status: 'done' },
-              result: result.slice(0, 500),
+              result: finalResult.slice(0, 800),
+              toolCalls: toolResults.map((r) => ({ tool: r.tool, success: r.success })),
+              tokensUsed: totalTokens,
             })
           }
 
-          await prisma.task.update({
-            where: { id: task.id },
-            data: { status: 'completed' },
-          })
+          // Phase 3: Complete
+          await prisma.task.update({ where: { id: task.id }, data: { status: 'completed' } })
 
           send('complete', {
             taskId: task.id,
-            summary: `Completed ${subtasks.length} subtask(s) for: ${plan.objective || message}`,
-            results,
+            summary: `Completed ${subtasks.length} task(s) using ${allResults.reduce((a, r) => a + (r.toolCalls?.length || 0), 0)} tool call(s). Total tokens: ${totalTokens.toLocaleString()}`,
+            results: allResults,
+            tokensUsed: totalTokens,
           })
         } catch (err: any) {
           send('error', { message: err?.message || 'Execution failed' })
-          await prisma.task.update({
-            where: { id: task.id },
-            data: { status: 'failed' },
-          }).catch(() => {})
+          await prisma.task.update({ where: { id: task.id }, data: { status: 'failed' } }).catch(() => {})
         } finally {
           controller.close()
         }
@@ -201,14 +258,9 @@ export async function POST(req: Request) {
     })
 
     return new Response(stream, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
+      headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
     })
   } catch (error: any) {
-    console.error('Chat error:', error)
     return new Response(JSON.stringify({ error: error?.message || 'Failed to process' }), { status: 500 })
   }
 }

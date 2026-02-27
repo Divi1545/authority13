@@ -9,7 +9,15 @@ const plans = [
     price: '$49',
     subtitle: 'per month',
     cta: 'Start Free',
-    features: ['1 workspace', 'Commander + 2 agents', 'BYOK required', 'Limited runs', 'Basic approvals'],
+    features: [
+      '1 workspace',
+      'Commander + 2 specialist agents',
+      'All 8 tools included',
+      '1 channel (Telegram)',
+      'Basic memory (100 entries)',
+      'BYOK required',
+      'Basic approvals',
+    ],
   },
   {
     name: 'Pro',
@@ -19,10 +27,13 @@ const plans = [
     popular: true,
     features: [
       'Up to 5 agents',
+      'All tools + custom webhooks',
+      'All channels (Telegram, Discord, Slack)',
+      'Unlimited memory',
+      'AGI Dashboard + analytics',
       'Mission Control full UI',
-      'Approvals + audit',
-      'Email + calendar tools',
-      'Weekly briefings (boardroom)',
+      'Approvals + full audit trail',
+      'Priority support',
     ],
   },
   {
@@ -30,7 +41,16 @@ const plans = [
     price: '$299',
     subtitle: 'per month',
     cta: 'Start Free',
-    features: ['Unlimited agents', 'Multi-user workspace', 'AI Boardroom', 'Reports + analytics', 'Priority support'],
+    features: [
+      'Unlimited agents',
+      'Multi-user workspace',
+      'All channels + WhatsApp',
+      'AI Boardroom',
+      'Advanced analytics + reports',
+      'Custom tool integrations',
+      'Dedicated onboarding',
+      'Priority support',
+    ],
   },
   {
     name: 'Enterprise',
@@ -38,8 +58,26 @@ const plans = [
     subtitle: '$600-$1,000+/month',
     cta: 'Contact Sales',
     outline: true,
-    features: ['Custom connectors + SLA', 'White-label options', 'Dedicated onboarding', 'Custom integrations', '24/7 support'],
+    features: [
+      'Everything in Business',
+      'White-label options',
+      'Custom SLA',
+      'On-premise deployment',
+      'Custom AI model hosting',
+      'Dedicated account manager',
+      '24/7 support',
+    ],
   },
+]
+
+const comparison = [
+  { feature: 'AI Agents', starter: '3', pro: '5', business: 'Unlimited', enterprise: 'Unlimited' },
+  { feature: 'Tools (search, email, etc.)', starter: 'All 8', pro: 'All + custom', business: 'All + custom', enterprise: 'All + custom' },
+  { feature: 'Channels', starter: '1', pro: 'All', business: 'All + WhatsApp', enterprise: 'All + custom' },
+  { feature: 'Memory', starter: '100 entries', pro: 'Unlimited', business: 'Unlimited', enterprise: 'Unlimited' },
+  { feature: 'Dashboard', starter: 'Basic', pro: 'Full AGI', business: 'Full AGI', enterprise: 'Custom' },
+  { feature: 'Audit Trail', starter: 'Basic', pro: 'Full', business: 'Full', enterprise: 'Full + export' },
+  { feature: 'Support', starter: 'Community', pro: 'Priority', business: 'Priority', enterprise: '24/7 dedicated' },
 ]
 
 export default function PricingPage() {
@@ -49,16 +87,10 @@ export default function PricingPage() {
 
       <nav className="sticky top-0 z-40 border-b border-white/60 bg-white/70 backdrop-blur-md">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <Link href="/" className="text-xl font-semibold tracking-tight">
-            Authority13
-          </Link>
+          <Link href="/" className="text-xl font-semibold tracking-tight">Authority13</Link>
           <div className="flex items-center gap-4">
-            <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
-              About
-            </Link>
-            <Link href="/signin">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">About</Link>
+            <Link href="/signin"><Button variant="ghost">Sign In</Button></Link>
           </div>
         </div>
       </nav>
@@ -67,7 +99,7 @@ export default function PricingPage() {
         <GlassCard className="fade-up p-8 text-center md:p-10">
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Pricing</h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Choose the plan that matches your AI workforce scale, control needs, and execution volume.
+            Choose the plan that matches your AI workforce scale. All plans include real tool execution, live streaming, and BYOK support.
           </p>
         </GlassCard>
       </SectionShell>
@@ -95,18 +127,17 @@ export default function PricingPage() {
               <CardContent className="flex flex-1 flex-col space-y-5">
                 <ul className="space-y-3 text-sm text-muted-foreground">
                   {plan.features.map((feature) => (
-                    <li key={feature}>✓ {feature}</li>
+                    <li key={feature} className="flex items-start gap-2">
+                      <span className="text-green-600 mt-0.5">&#10003;</span>
+                      {feature}
+                    </li>
                   ))}
                 </ul>
                 <div className="mt-auto">
                   {plan.outline ? (
-                    <Button className="w-full" variant="outline">
-                      {plan.cta}
-                    </Button>
+                    <Button className="w-full" variant="outline">{plan.cta}</Button>
                   ) : (
-                    <Link href="/signup">
-                      <Button className="w-full">{plan.cta}</Button>
-                    </Link>
+                    <Link href="/signup"><Button className="w-full">{plan.cta}</Button></Link>
                   )}
                 </div>
               </CardContent>
@@ -115,12 +146,45 @@ export default function PricingPage() {
         </div>
       </SectionShell>
 
+      {/* Comparison Table */}
+      <SectionShell className="pt-2">
+        <GlassCard className="fade-up overflow-hidden">
+          <div className="px-6 py-5 border-b">
+            <h3 className="text-xl font-semibold">Plan Comparison</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-neutral-50/50">
+                  <th className="text-left px-6 py-3 font-medium">Feature</th>
+                  <th className="text-center px-4 py-3 font-medium">Starter</th>
+                  <th className="text-center px-4 py-3 font-medium text-primary">Pro</th>
+                  <th className="text-center px-4 py-3 font-medium">Business</th>
+                  <th className="text-center px-4 py-3 font-medium">Enterprise</th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.map((row) => (
+                  <tr key={row.feature} className="border-b last:border-0">
+                    <td className="px-6 py-3 font-medium">{row.feature}</td>
+                    <td className="text-center px-4 py-3 text-muted-foreground">{row.starter}</td>
+                    <td className="text-center px-4 py-3">{row.pro}</td>
+                    <td className="text-center px-4 py-3 text-muted-foreground">{row.business}</td>
+                    <td className="text-center px-4 py-3 text-muted-foreground">{row.enterprise}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </GlassCard>
+      </SectionShell>
+
       <SectionShell className="pt-2">
         <GlassCard className="fade-up p-7">
           <h3 className="font-semibold">About BYOK (Bring Your Own Key)</h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            BYOK means you bring your own model keys (OpenAI, Anthropic, Google, and more). Model usage is billed
-            directly by your provider while Authority13 covers orchestration, oversight, and operating workflows.
+            BYOK means you bring your own model keys (OpenAI, Deepseek, Groq, Anthropic, Google, and more). Model usage is billed
+            directly by your provider while Authority13 covers orchestration, tools, channels, memory, and oversight workflows.
           </p>
         </GlassCard>
       </SectionShell>
