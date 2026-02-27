@@ -1,17 +1,59 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { GlassCard, GradientOrb, SectionShell } from '@/components/marketing/primitives'
+
+const plans = [
+  {
+    name: 'Starter',
+    price: '$49',
+    subtitle: 'per month',
+    cta: 'Start Free',
+    features: ['1 workspace', 'Commander + 2 agents', 'BYOK required', 'Limited runs', 'Basic approvals'],
+  },
+  {
+    name: 'Pro',
+    price: '$149',
+    subtitle: 'per month',
+    cta: 'Start Free',
+    popular: true,
+    features: [
+      'Up to 5 agents',
+      'Mission Control full UI',
+      'Approvals + audit',
+      'Email + calendar tools',
+      'Weekly briefings (boardroom)',
+    ],
+  },
+  {
+    name: 'Business',
+    price: '$299',
+    subtitle: 'per month',
+    cta: 'Start Free',
+    features: ['Unlimited agents', 'Multi-user workspace', 'AI Boardroom', 'Reports + analytics', 'Priority support'],
+  },
+  {
+    name: 'Enterprise',
+    price: 'Custom',
+    subtitle: '$600-$1,000+/month',
+    cta: 'Contact Sales',
+    outline: true,
+    features: ['Custom connectors + SLA', 'White-label options', 'Dedicated onboarding', 'Custom integrations', '24/7 support'],
+  },
+]
 
 export default function PricingPage() {
   return (
-    <div className="min-h-screen bg-background">
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-slate-50 to-sky-50/40">
+      <GradientOrb className="-right-20 top-12 h-72 w-72" />
+
+      <nav className="sticky top-0 z-40 border-b border-white/60 bg-white/70 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          <Link href="/" className="text-xl font-semibold tracking-tight">
             Authority13
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/about" className="text-sm hover:underline">
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
               About
             </Link>
             <Link href="/signin">
@@ -21,108 +63,67 @@ export default function PricingPage() {
         </div>
       </nav>
 
-      <div className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl font-bold mb-4">Pricing</h1>
-          <p className="text-xl text-muted-foreground">
-            Choose the plan that fits your AI workforce needs
+      <SectionShell>
+        <GlassCard className="fade-up p-8 text-center md:p-10">
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Pricing</h1>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+            Choose the plan that matches your AI workforce scale, control needs, and execution volume.
           </p>
+        </GlassCard>
+      </SectionShell>
+
+      <SectionShell className="pt-0">
+        <div className="mx-auto grid max-w-7xl gap-6 md:grid-cols-2 xl:grid-cols-4">
+          {plans.map((plan) => (
+            <Card
+              key={plan.name}
+              className={[
+                'glass-hover fade-up-delay-1 relative flex h-full flex-col',
+                plan.popular ? 'border-primary border-2' : '',
+              ].join(' ')}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground">
+                  Most Popular
+                </div>
+              )}
+              <CardHeader>
+                <CardTitle>{plan.name}</CardTitle>
+                <div className="mt-4 text-3xl font-semibold">{plan.price}</div>
+                <CardDescription>{plan.subtitle}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-1 flex-col space-y-5">
+                <ul className="space-y-3 text-sm text-muted-foreground">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>✓ {feature}</li>
+                  ))}
+                </ul>
+                <div className="mt-auto">
+                  {plan.outline ? (
+                    <Button className="w-full" variant="outline">
+                      {plan.cta}
+                    </Button>
+                  ) : (
+                    <Link href="/signup">
+                      <Button className="w-full">{plan.cta}</Button>
+                    </Link>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+      </SectionShell>
 
-        <div className="grid md:grid-cols-4 gap-8 max-w-7xl mx-auto mb-16">
-          <Card>
-            <CardHeader>
-              <CardTitle>Starter</CardTitle>
-              <div className="text-3xl font-bold mt-4">$49</div>
-              <CardDescription>per month</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-3 text-sm">
-                <li>✓ 1 workspace</li>
-                <li>✓ Commander + 2 agents</li>
-                <li>✓ BYOK required</li>
-                <li>✓ Limited runs</li>
-                <li>✓ Basic approvals</li>
-              </ul>
-              <Link href="/signup">
-                <Button className="w-full">Start Free</Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary border-2 relative">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-xs px-3 py-1 rounded-full">
-              Most Popular
-            </div>
-            <CardHeader>
-              <CardTitle>Pro</CardTitle>
-              <div className="text-3xl font-bold mt-4">$149</div>
-              <CardDescription>per month</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-3 text-sm">
-                <li>✓ Up to 5 agents</li>
-                <li>✓ Mission Control full UI</li>
-                <li>✓ Approvals + audit</li>
-                <li>✓ Email + calendar tools</li>
-                <li>✓ Weekly briefings (boardroom)</li>
-              </ul>
-              <Link href="/signup">
-                <Button className="w-full">Start Free</Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Business</CardTitle>
-              <div className="text-3xl font-bold mt-4">$299</div>
-              <CardDescription>per month</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-3 text-sm">
-                <li>✓ Unlimited agents</li>
-                <li>✓ Multi-user workspace</li>
-                <li>✓ AI Boardroom</li>
-                <li>✓ Reports + analytics</li>
-                <li>✓ Priority support</li>
-              </ul>
-              <Link href="/signup">
-                <Button className="w-full">Start Free</Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Enterprise</CardTitle>
-              <div className="text-3xl font-bold mt-4">Custom</div>
-              <CardDescription>$600-$1,000+/month</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-3 text-sm">
-                <li>✓ Custom connectors + SLA</li>
-                <li>✓ White-label options</li>
-                <li>✓ Dedicated onboarding</li>
-                <li>✓ Custom integrations</li>
-                <li>✓ 24/7 support</li>
-              </ul>
-              <Button className="w-full" variant="outline">
-                Contact Sales
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="max-w-3xl mx-auto bg-secondary/30 p-6 rounded-lg">
-          <h3 className="font-semibold mb-2">About BYOK (Bring Your Own Key)</h3>
-          <p className="text-sm text-muted-foreground">
-            BYOK means you bring your own model keys (OpenAI, Anthropic, or Google). 
-            Your provider usage is billed by the provider directly; Authority13 adds the platform subscription fee only.
-            This gives you full control over your AI costs and data.
+      <SectionShell className="pt-2">
+        <GlassCard className="fade-up p-7">
+          <h3 className="font-semibold">About BYOK (Bring Your Own Key)</h3>
+          <p className="mt-2 text-sm text-muted-foreground">
+            BYOK means you bring your own model keys (OpenAI, Anthropic, Google, and more). Model usage is billed
+            directly by your provider while Authority13 covers orchestration, oversight, and operating workflows.
           </p>
-        </div>
-      </div>
+        </GlassCard>
+      </SectionShell>
     </div>
   )
 }

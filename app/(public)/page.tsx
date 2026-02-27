@@ -1,22 +1,52 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { GlassCard, GradientOrb, SectionShell } from '@/components/marketing/primitives'
+
+const features = [
+  {
+    title: 'Mission Control',
+    description: 'Live agent graph, execution timeline, and console in one command center.',
+  },
+  {
+    title: 'In-app Agent Calls',
+    description: 'Run voice briefings with your AI workforce directly in the platform.',
+  },
+  {
+    title: 'Approvals + Audit Trails',
+    description: 'Keep humans in the loop and retain complete logs for compliance.',
+  },
+  {
+    title: 'BYOK with Spend Limits',
+    description: 'Use your own model keys and maintain complete cost control.',
+  },
+  {
+    title: 'Tag Agents in Chat',
+    description: 'Delegate directly with @Commander and specialist employees.',
+  },
+  {
+    title: 'Multi-tenant Workspaces',
+    description: 'Role-based access across teams, departments, and clients.',
+  },
+]
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary">
-      {/* Navigation */}
-      <nav className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="text-2xl font-bold">Authority13</div>
-          <div className="flex items-center gap-4">
-            <Link href="/pricing" className="text-sm hover:underline">
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-slate-50 via-slate-50 to-sky-50/40">
+      <GradientOrb className="-left-24 -top-20 h-72 w-72" />
+      <GradientOrb className="right-0 top-56 h-80 w-80" />
+
+      <nav className="sticky top-0 z-40 border-b border-white/60 bg-white/70 backdrop-blur-md">
+        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+          <div className="text-xl font-semibold tracking-tight">Authority13</div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">
               Pricing
             </Link>
-            <Link href="/about" className="text-sm hover:underline">
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-foreground">
               About
             </Link>
-            <Link href="/signin">
+            <Link href="/signin" className="hidden sm:block">
               <Button variant="ghost">Sign In</Button>
             </Link>
             <Link href="/signup">
@@ -26,144 +56,105 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-6xl font-bold mb-6">Authority13</h1>
-        <p className="text-3xl text-muted-foreground mb-4">
-          AI Employees. Real Work. Full Control.
-        </p>
-        <p className="text-xl text-muted-foreground mb-12 max-w-3xl mx-auto">
-          Run your business with digital employees that plan, execute, and report — with approvals, audit logs, and live visibility.
-        </p>
-        <div className="flex gap-4 justify-center">
-          <Link href="/signup">
-            <Button size="lg" className="text-lg px-8">Start Free Trial</Button>
-          </Link>
-          <Link href="/pricing">
-            <Button size="lg" variant="outline" className="text-lg px-8">View Pricing</Button>
-          </Link>
+      <SectionShell>
+        <GlassCard className="fade-up glass-hover p-8 md:p-12">
+          <div className="mx-auto max-w-4xl text-center">
+            <p className="mb-5 inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600">
+              AI Workforce Operating System
+            </p>
+            <h1 className="text-4xl font-semibold leading-tight tracking-tight sm:text-5xl md:text-6xl">
+              AI Employees.
+              <br />
+              Real Work. Full Control.
+            </h1>
+            <p className="mx-auto mt-6 max-w-3xl text-base text-muted-foreground sm:text-lg">
+              Run your business with digital employees that plan, execute, and report, with approvals,
+              audit logs, and live visibility in one mission-control workspace.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Link href="/signup">
+                <Button size="lg" className="px-8">
+                  Start Free Trial
+                </Button>
+              </Link>
+              <Link href="/pricing">
+                <Button size="lg" variant="outline" className="px-8">
+                  View Pricing
+                </Button>
+              </Link>
+            </div>
+            <div className="mt-8 grid gap-2 text-sm text-muted-foreground sm:grid-cols-3">
+              <div>BYOK + encrypted secrets</div>
+              <div>Human-in-the-loop approvals</div>
+              <div>Live execution visibility</div>
+            </div>
+          </div>
+        </GlassCard>
+      </SectionShell>
+
+      <SectionShell>
+        <div className="fade-up-delay-1">
+          <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">How It Works</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-muted-foreground">
+            One command in plain English, then watch the workforce plan and execute with safety controls.
+          </p>
         </div>
-      </section>
-
-      {/* How it Works */}
-      <section className="container mx-auto px-4 py-20">
-        <h2 className="text-4xl font-bold text-center mb-16">How It Works</h2>
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mb-4">
-                1
-              </div>
-              <CardTitle>Tell the Commander</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Talk to ONE Commander Agent. Describe what you want done in plain English.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mb-4">
-                2
-              </div>
-              <CardTitle>Watch Agents Assemble</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                See the Commander delegate to specialist agents in real-time. Track every step.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mb-4">
-                3
-              </div>
-              <CardTitle>Approve & Track</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Review risky actions before they execute. Track costs and audit all decisions.
-              </p>
-            </CardContent>
-          </Card>
+        <div className="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-3">
+          {[
+            {
+              step: '1',
+              title: 'Tell the Commander',
+              body: 'Describe your goal in plain English and set your preferred outcome.',
+            },
+            {
+              step: '2',
+              title: 'Watch Agents Assemble',
+              body: 'Commander routes work to specialist employees and executes in sequence.',
+            },
+            {
+              step: '3',
+              title: 'Approve and Track',
+              body: 'Review risky actions, approve instantly, and keep a complete audit record.',
+            },
+          ].map((item) => (
+            <Card key={item.step} className="glass-hover fade-up-delay-1">
+              <CardHeader>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
+                  {item.step}
+                </div>
+                <CardTitle>{item.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">{item.body}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </section>
+      </SectionShell>
 
-      {/* Key Features */}
-      <section className="container mx-auto px-4 py-20 bg-secondary/30 rounded-lg">
-        <h2 className="text-4xl font-bold text-center mb-16">Key Features</h2>
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded bg-primary flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold mb-2">Mission Control</h3>
-              <p className="text-sm text-muted-foreground">
-                Live agent graph + timeline + console. See AI at work in real-time.
-              </p>
-            </div>
+      <SectionShell>
+        <GlassCard className="fade-up-delay-2 p-8 md:p-10">
+          <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">Key Features</h2>
+          <div className="mx-auto mt-10 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => (
+              <div
+                key={feature.title}
+                className="glass-hover rounded-xl border border-slate-200/80 bg-white/80 p-4"
+              >
+                <h3 className="font-semibold">{feature.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{feature.description}</p>
+              </div>
+            ))}
           </div>
+        </GlassCard>
+      </SectionShell>
 
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded bg-primary flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold mb-2">In-app Agent Calls</h3>
-              <p className="text-sm text-muted-foreground">
-                Voice briefings with your AI workforce. No Zoom, no Twilio.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded bg-primary flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold mb-2">Approvals + Audit Trails</h3>
-              <p className="text-sm text-muted-foreground">
-                Human-in-the-loop for risky actions. Complete audit log for compliance.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded bg-primary flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold mb-2">BYOK with Spend Limits</h3>
-              <p className="text-sm text-muted-foreground">
-                Bring your own AI keys. Track costs. Set daily/monthly limits.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded bg-primary flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold mb-2">Tag Agents in Chat</h3>
-              <p className="text-sm text-muted-foreground">
-                @Commander @Growth @Ops @Support @Analyst — direct delegation.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-4">
-            <div className="w-8 h-8 rounded bg-primary flex-shrink-0" />
-            <div>
-              <h3 className="font-semibold mb-2">Multi-tenant Workspaces</h3>
-              <p className="text-sm text-muted-foreground">
-                Role-based access. Admin, Manager, Operator, Viewer permissions.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Preview */}
-      <section className="container mx-auto px-4 py-20">
-        <h2 className="text-4xl font-bold text-center mb-16">Simple, Transparent Pricing</h2>
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          <Card>
+      <SectionShell>
+        <h2 className="text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+          Simple, Transparent Pricing
+        </h2>
+        <div className="mx-auto mt-10 grid max-w-5xl gap-6 md:grid-cols-3">
+          <Card className="glass-hover">
             <CardHeader>
               <CardTitle>Starter</CardTitle>
               <CardDescription>$49/month</CardDescription>
@@ -177,12 +168,11 @@ export default function HomePage() {
               </ul>
             </CardContent>
           </Card>
-
-          <Card className="border-primary border-2">
+          <Card className="glass-hover border-primary border-2">
             <CardHeader>
               <CardTitle>Pro</CardTitle>
               <CardDescription>$149/month</CardDescription>
-              <div className="text-xs text-primary mt-2">Most Popular</div>
+              <div className="mt-2 text-xs text-primary">Most Popular</div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">
@@ -194,8 +184,7 @@ export default function HomePage() {
               </ul>
             </CardContent>
           </Card>
-
-          <Card>
+          <Card className="glass-hover">
             <CardHeader>
               <CardTitle>Business</CardTitle>
               <CardDescription>$299/month</CardDescription>
@@ -211,26 +200,30 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
-        <div className="text-center mt-8">
+        <div className="mt-8 text-center">
           <Link href="/pricing">
             <Button variant="outline">See All Plans</Button>
           </Link>
         </div>
-      </section>
+      </SectionShell>
 
-      {/* CTA */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <h2 className="text-4xl font-bold mb-6">Ready to Build Your AI Workforce?</h2>
-        <p className="text-xl text-muted-foreground mb-8">
-          Start free. No credit card required.
-        </p>
-        <Link href="/signup">
-          <Button size="lg" className="text-lg px-8">Get Started Now</Button>
-        </Link>
-      </section>
+      <SectionShell>
+        <GlassCard className="fade-up p-10 text-center">
+          <h2 className="text-3xl font-semibold sm:text-4xl">Ready to Build Your AI Workforce?</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+            Start free with your own model keys and launch your first digital team in minutes.
+          </p>
+          <div className="mt-8">
+            <Link href="/signup">
+              <Button size="lg" className="px-8">
+                Get Started Now
+              </Button>
+            </Link>
+          </div>
+        </GlassCard>
+      </SectionShell>
 
-      {/* Footer */}
-      <footer className="border-t py-8">
+      <footer className="border-t border-white/60 bg-white/70 py-8 backdrop-blur-sm">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>© 2026 Authority13 by AI Code Agency (Pvt) Ltd. All rights reserved.</p>
         </div>

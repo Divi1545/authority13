@@ -1,17 +1,30 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card } from '@/components/ui/card'
-import { Send, Sparkles, Wand2, KeyRound, ExternalLink } from 'lucide-react'
+import { Send, Wand2, KeyRound, ExternalLink, Loader2, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
+
+// Keywords that suggest user wants to connect external services → prompt for API keys
+const CONNECT_INTENT_KEYWORDS = [
+  'connect', 'dashboard', 'api key', 'api keys', 'secret', 'integrate', 'integration',
+  'webhook', 'stripe', 'slack', 'notion', 'airtable', 'hubspot', 'salesforce',
+  'oauth', 'credentials', 'authenticate', 'authorize',
+]
+
+function detectConnectIntent(text: string): boolean {
+  const lower = text.toLowerCase()
+  return CONNECT_INTENT_KEYWORDS.some((kw) => lower.includes(kw))
+}
 
 interface CommanderChatProps {
   onTaskCreated?: () => void
+  onRunStarted?: (runId: string, taskId: string) => void
 }
 
-export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
+export function CommanderChat({ onTaskCreated, onRunStarted }: CommanderChatProps) {
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([
     {
@@ -21,7 +34,11 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
     },
   ])
   const [loading, setLoading] = useState(false)
+  const [progressSteps, setProgressSteps] = useState<string[]>([])
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   // Check if user has connected at least one LLM API key
   useEffect(() => {
@@ -46,27 +63,144 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
     checkApiKeys()
   }, [])
 
-  const handleSend = async () => {
-    if (!message.trim()) return
+  // Auto-scroll when messages or progress steps change
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages, progressSteps])
 
-    // If no API key, prompt to connect
+  // Cleanup SSE and polling on unmount
+  useEffect(() => {
+    return () => {
+      eventSourceRef.current?.close()
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
+
+  const pollForRunAndConnectSSE = (taskId: string) => {
+    const maxAttempts = 60 // ~90 seconds
+    let attempts = 0
+
+    pollRef.current = setInterval(async () => {
+      attempts++
+      try {
+        const res = await fetch(`/api/tasks/${taskId}`)
+        const data = await res.json()
+        const task = data?.task
+        const activeRunId = task?.activeRunId
+        const runs = task?.runs || []
+        const runId = activeRunId || runs[0]?.id
+
+        if (runId) {
+          if (pollRef.current) {
+            clearInterval(pollRef.current)
+            pollRef.current = null
+          }
+          setProgressSteps((prev) => [...prev, 'Worker picked up. Connecting to live stream...'])
+          onRunStarted?.(runId, taskId)
+          connectToSSE(runId)
+        }
+      } catch {
+        // ignore
+      }
+      if (attempts >= maxAttempts && pollRef.current) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+        setProgressSteps((prev) => [...prev, 'Still queued. Check Task Breakdown tab for status.'])
+        setLoading(false)
+      }
+    }, 1500)
+  }
+
+  const connectToSSE = (runId: string) => {
+    eventSourceRef.current?.close()
+    const es = new EventSource(`/api/stream/${runId}`)
+    eventSourceRef.current = es
+
+    es.addEventListener('run.started', () => {
+      setProgressSteps((prev) => [...prev, 'Run started. Planning...'])
+    })
+
+    es.addEventListener('plan.created', () => {
+      setProgressSteps((prev) => [...prev, 'Plan created. Building...'])
+    })
+
+    es.addEventListener('subtask.started', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data || '{}')
+        const title = data?.subtask?.title || 'Subtask'
+        setProgressSteps((prev) => [...prev, `Implementing: ${title}`])
+      } catch {
+        setProgressSteps((prev) => [...prev, 'Implementing subtask...'])
+      }
+    })
+
+    es.addEventListener('subtask.completed', () => {
+      setProgressSteps((prev) => [...prev, 'Subtask completed.'])
+    })
+
+    es.addEventListener('log', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data || '{}')
+        const msg = data?.message || ''
+        if (msg) setProgressSteps((prev) => [...prev, msg])
+      } catch {
+        // ignore
+      }
+    })
+
+    es.addEventListener('run.completed', () => {
+      setProgressSteps((prev) => [...prev, 'All done!'])
+      cleanup()
+      onTaskCreated?.()
+    })
+
+    const cleanup = () => {
+      if (!eventSourceRef.current) return
+      setLoading(false)
+      es.close()
+      eventSourceRef.current = null
+    }
+
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) return
+      setProgressSteps((prev) => [...prev, 'Connection closed.'])
+      cleanup()
+      onTaskCreated?.()
+    }
+  }
+
+  const handleSend = async () => {
+    if (!message.trim() || hasApiKey === null) return
+
     if (hasApiKey === false) {
+      const wantsToConnect = detectConnectIntent(message)
       setMessages((prev) => [
         ...prev,
         { role: 'user', content: message },
         {
           role: 'assistant',
-          content: "I'd love to help, but I need an AI model to work with. Please connect an API key (like OpenAI or Anthropic) in Settings → Integrations first. Once connected, I'll be ready to execute!",
+          content: wantsToConnect
+            ? "To connect to external services or dashboards, I need your API keys first. Go to **Settings → Secrets** (or the Secrets tab in the right panel) and add your API keys (e.g. OpenAI, Anthropic, or the service you want to connect). Once connected, tell me again what you'd like to build or integrate."
+            : "I'd love to help, but I need an AI model to work with. Please connect an API key (like OpenAI or Anthropic) in **Settings → Integrations** or the **Secrets** tab first. Once connected, I'll be ready to execute!",
         },
       ])
       setMessage('')
       return
     }
 
+    // Clean up any in-flight SSE/poll from a previous task
+    eventSourceRef.current?.close()
+    eventSourceRef.current = null
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+
     const userMessage = message
     setMessage('')
     setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
     setLoading(true)
+    setProgressSteps(['Creating task...'])
 
     try {
       const res = await fetch('/api/chat', {
@@ -76,19 +210,29 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
       })
 
       const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Failed to create task')
 
+      const taskId = data.taskId
+      setProgressSteps((prev) => [...prev, 'Task queued. Waiting for worker...'])
+
+      // Poll for run, then connect SSE
+      pollForRunAndConnectSSE(taskId)
+
+      // Show initial assistant response
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: data.response || 'Task created successfully!' },
+        {
+          role: 'assistant',
+          content: `Task created. I'm working on it — watch the progress below and the Live Console for real-time updates.`,
+        },
       ])
-      onTaskCreated?.()
     } catch (error) {
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: 'Sorry, something went wrong. Please try again.' },
       ])
-    } finally {
       setLoading(false)
+      setProgressSteps([])
     }
   }
 
@@ -133,7 +277,7 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.map((msg, idx) => (
           <div
             key={idx}
@@ -152,11 +296,21 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
         ))}
         {loading && (
           <div className="flex justify-start">
-            <Card className="p-3 bg-neutral-50 border-neutral-200">
-              <p className="text-sm flex items-center gap-2">
-                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                Thinking...
+            <Card className="p-3 bg-neutral-50 border-neutral-200 max-w-[85%]">
+              <p className="text-sm flex items-center gap-2 mb-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Working...
               </p>
+              {progressSteps.length > 0 && (
+                <ul className="text-xs text-muted-foreground space-y-1">
+                  {progressSteps.map((step, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                      {step}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Card>
           </div>
         )}
@@ -198,7 +352,7 @@ export function CommanderChat({ onTaskCreated }: CommanderChatProps) {
           />
           <Button
             onClick={handleSend}
-            disabled={loading || !message.trim()}
+            disabled={loading || !message.trim() || hasApiKey === null}
             className="h-auto self-stretch px-4"
           >
             <Send className="w-4 h-4 mr-2" />

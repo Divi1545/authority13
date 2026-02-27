@@ -82,7 +82,7 @@ export class AgentRuntime {
       })
     } catch (error) {
       await this.emitEvent({
-        type: 'error',
+        type: 'run.error',
         data: { error: (error as Error).message },
       })
       throw error

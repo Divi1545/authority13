@@ -102,6 +102,8 @@ export default function MissionControlPage() {
   const [apiKey, setApiKey] = useState('')
   const [savingApiKey, setSavingApiKey] = useState(false)
   const [auditFilter, setAuditFilter] = useState('')
+  const [activeRunId, setActiveRunId] = useState<string | null>(null)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
 
   const loadWorkspaceData = async (isRefresh = false) => {
     if (isRefresh) {
@@ -361,7 +363,13 @@ export default function MissionControlPage() {
               </p>
             </div>
             <div className="flex-1 min-h-0">
-              <CommanderChat onTaskCreated={() => loadWorkspaceData(true)} />
+              <CommanderChat
+                onTaskCreated={() => loadWorkspaceData(true)}
+                onRunStarted={(runId, taskId) => {
+                  setActiveRunId(runId)
+                  setActiveTaskId(taskId)
+                }}
+              />
             </div>
           </div>
         </section>
@@ -436,7 +444,7 @@ export default function MissionControlPage() {
                     <CardTitle className="text-base">Execution Timeline</CardTitle>
                   </CardHeader>
                   <CardContent className="max-h-[320px] overflow-y-auto">
-                    <ExecutionTimeline />
+                    <ExecutionTimeline runId={activeRunId} taskId={activeTaskId} />
                   </CardContent>
                 </Card>
                 <Card>
@@ -444,7 +452,7 @@ export default function MissionControlPage() {
                     <CardTitle className="text-base">Live Console</CardTitle>
                   </CardHeader>
                   <CardContent className="h-[320px]">
-                    <VibeConsole />
+                    <VibeConsole runId={activeRunId} />
                   </CardContent>
                 </Card>
               </div>

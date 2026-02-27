@@ -57,3 +57,73 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+@layer utilities {
+  .glass-hover {
+    @apply transition-all duration-300;
+  }
+
+  .glass-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 45px rgba(15, 23, 42, 0.12);
+  }
+
+  .fade-up {
+    animation: fadeUp 700ms ease-out both;
+  }
+
+  .fade-up-delay-1 {
+    animation: fadeUp 700ms ease-out 120ms both;
+  }
+
+  .fade-up-delay-2 {
+    animation: fadeUp 700ms ease-out 220ms both;
+  }
+
+  .reveal-up {
+    animation: revealUp 650ms ease-out both;
+  }
+
+  .reveal-up-delay-1 {
+    animation: revealUp 650ms ease-out 90ms both;
+  }
+
+  .reveal-up-delay-2 {
+    animation: revealUp 650ms ease-out 170ms both;
+  }
+
+  .reveal-up-delay-3 {
+    animation: revealUp 650ms ease-out 250ms both;
+  }
+
+  .interactive-button {
+    @apply transition-all duration-200;
+  }
+
+  .interactive-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.14);
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
